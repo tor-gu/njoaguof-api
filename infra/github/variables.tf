@@ -8,8 +8,13 @@ variable "project" {
   type        = string
 }
 
-variable "github_repo" {
-  description = "owner/name of the GitHub repository whose workflows may assume the roles"
+variable "github_subject_prefix" {
+  description = <<-EOT
+    Start of the OIDC sub claim of the repository whose workflows may assume
+    the roles: gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+    shows it as sub_claim_prefix (repo:<owner>@<id>/<repo>@<id> for immutable
+    subjects)
+  EOT
   type        = string
 }
 

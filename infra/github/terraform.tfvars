@@ -1,5 +1,6 @@
-project     = "njoaguof-api"
-github_repo = "tor-gu/njoaguof-api"
+project = "njoaguof-api"
+# gh api repos/tor-gu/njoaguof-api/actions/oidc/customization/sub
+github_subject_prefix = "repo:tor-gu@99346055/njoaguof-api@1424958506"
 
 envs = {
   dev = {
