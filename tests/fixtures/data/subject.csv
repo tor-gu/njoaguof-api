@@ -1,0 +1,9 @@
+"form_id","index","arrested","type","age","juvenile","race","gender","injured","injured_prior"
+101,1,TRUE,"Person",23,FALSE,"Black","Male",FALSE,FALSE
+101,2,,"Person",16,TRUE,"White","Female",TRUE,
+102,1,FALSE,"Person",40,FALSE,"Black","Male",FALSE,FALSE
+103,1,TRUE,"Person",31,FALSE,,"Female",FALSE,FALSE
+104,1,TRUE,"Person",52,FALSE,"Hispanic","Male",TRUE,FALSE
+104,2,FALSE,"Animal",,,,,TRUE,
+105,1,FALSE,"Person",19,FALSE,"White","Male",FALSE,FALSE
+106,1,TRUE,"Person",33,FALSE,"Black","Female",FALSE,TRUE

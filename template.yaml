@@ -1,0 +1,213 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  SAM template for njoaguof-api
+
+
+Parameters:
+  TorguapiLayerArn:
+    Type: String
+    Description: Arn for torguapi layer (not a layer version, so exclude the version number)
+  TorguapiLayerVersion:
+    Type: Number
+    Description: Version number for TorguapiLayer (10 or later, for lists of dicts)
+    MinValue: "10"
+  EnvPrefix:
+    Type: String
+    Description: Prefix for resource names
+    Default: ""
+  ApiRoot:
+    Type: String
+    Description: API root
+    Default: https://api.tor-gu.com
+  DataVersion:
+    Type: String
+    Description: njoaguof version the data was built from (data/SOURCE)
+    Default: ""
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 10
+    MemorySize: 512
+    Tracing: Active
+    Environment:
+      Variables:
+        API_ROOT: !Ref ApiRoot
+        DATA_VERSION: !Ref DataVersion
+    Layers:
+      - !Ref CommonLayer
+      - !Sub "${TorguapiLayerArn}:${TorguapiLayerVersion}"
+  Api:
+    TracingEnabled: True
+
+
+Resources:
+  CommonLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${EnvPrefix}njoaguof_common_layer"
+      Description: common_layer library
+      ContentUri: common_layer
+      CompatibleRuntimes:
+        - python3.12
+    Metadata:
+      BuildMethod: python3.12
+
+  # Each function packages its own data (<function>/data/, built by make data)
+  IncidentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: incidents/
+      FunctionName: !Sub "${EnvPrefix}njoaguof-api-incidents"
+      Handler: app.incidents_api.incidents_handler
+      Events:
+        GetIncidents:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/incidents
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+        GetIncident:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/incidents/{form_id}
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+        GetIncidentSubjects:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/incidents/{form_id}/subjects
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+        GetSubjects:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/subjects
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+        GetAgencies:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/agencies
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+
+  AttributesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: attributes/
+      FunctionName: !Sub "${EnvPrefix}njoaguof-api-attributes"
+      Handler: app.attributes_api.attributes_handler
+      Events:
+        GetAttributes:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/attributes
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+        GetAttributeRows:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/attributes/{attribute}
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+        GetAttributeLevels:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/attributes/{attribute}/levels
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+        GetIncidentAttributeRows:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/incidents/{form_id}/attributes/{attribute}
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+
+  OfficersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: officers/
+      FunctionName: !Sub "${EnvPrefix}njoaguof-api-officers"
+      Handler: app.officers_api.officers_handler
+      Events:
+        GetOfficer:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/officers/{officer_name_id}
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+        GetOfficerNameVariants:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/officers/{officer_name_id}/name_variants
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+
+  # Counts scan whole columns in Python, so more memory (and CPU) pays off
+  CountsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: counts/
+      FunctionName: !Sub "${EnvPrefix}njoaguof-api-counts"
+      Handler: app.counts_api.counts_handler
+      MemorySize: 1024
+      Events:
+        GetIncidentCounts:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/counts/incidents
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+        GetSubjectCounts:
+          Type: Api
+          Properties:
+            Path: /nj/use_of_force/counts/subjects
+            Method: GET
+            RestApiId: !Ref UseOfForceApi
+
+  UseOfForceApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Name: !Sub "${EnvPrefix}UseOfForceApi"
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: use-of-force-openapi.yaml
+      # Starting values; CloudFront caches repeated requests in front of this
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          ThrottlingRateLimit: 50
+          ThrottlingBurstLimit: 100
+        - ResourcePath: "/~1nj~1use_of_force~1counts~1incidents"
+          HttpMethod: GET
+          ThrottlingRateLimit: 10
+          ThrottlingBurstLimit: 20
+        - ResourcePath: "/~1nj~1use_of_force~1counts~1subjects"
+          HttpMethod: GET
+          ThrottlingRateLimit: 10
+          ThrottlingBurstLimit: 20
+
+Outputs:
+  UseOfForceApiId:
+    Description: "API Gateway REST API id (the origin of the /nj/use_of_force/* route in torgu-api-cloudfront)"
+    Value: !Ref UseOfForceApi
+  UseOfForceApiUrl:
+    Description: "API Gateway endpoint URL for the Prod stage"
+    Value: !Sub "https://${UseOfForceApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/nj/use_of_force/"
+  IncidentsFunction:
+    Description: "Incidents Lambda Function ARN"
+    Value: !GetAtt IncidentsFunction.Arn
+  AttributesFunction:
+    Description: "Attributes Lambda Function ARN"
+    Value: !GetAtt AttributesFunction.Arn
+  OfficersFunction:
+    Description: "Officers Lambda Function ARN"
+    Value: !GetAtt OfficersFunction.Arn
+  CountsFunction:
+    Description: "Counts Lambda Function ARN"
+    Value: !GetAtt CountsFunction.Arn

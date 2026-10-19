@@ -1,0 +1,2 @@
+PYTHONPATH=common_layer
+AWS_SAM_STACK_NAME=NjoaguofApiDev

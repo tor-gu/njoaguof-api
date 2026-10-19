@@ -1,0 +1,1419 @@
+openapi: '3.0.2'
+info:
+  version: '1.0.0'
+  title: 'njoaguof-api'
+  description: >
+    # NJ OAG Use of Force data, from 2020-10-01 to 2026-09-30
+
+    A cleaned and normalized version of the NJ Attorney General's Use of Force
+    database (https://www.njoag.gov/force/), as published in the
+    [njoaguof data package for R](https://github.com/tor-gu/njoaguof).
+    Field names and values are the same as in the R package.
+
+
+    ## Conventions
+
+    * Every reply has the form `{"data": [...], "links": {...}, "meta": {...}}`.
+    `data` is always a list of flat records.
+
+    * Collections are paginated with `page_number` (default 1) and `page_size`
+    (default 100). Follow `links.next` until it is absent to retrieve every page.
+    `links` carries the filters of the request.
+
+    * A request that matches nothing, or a `page_number` past the last page,
+    returns `404`. An unknown query parameter or an invalid value returns `400`.
+
+    * Incident filters (`year`, `start_date`, `end_date`, `agency`,
+    `agency_county`, `incident_municipality`, `incident_municipality_county`,
+    `officer_name_id`) are combined with AND. On subject, attribute and count
+    endpoints they select the incidents, and the rows linked to those incidents
+    (by `form_id`) are returned.
+
+    * Missing values are `null`. Dates are `YYYY-MM-DD`. Filters match values
+    exactly, so they can not select `null`.
+
+
+    ## Attributes
+
+    Multi-value fields of the source data are served as *attribute* tables, one
+    row per value. There are two shapes:
+
+    * `incident`: values that apply to the whole incident. Rows are
+    `{form_id, <value>}`.
+
+    * `incident_subject`: values that apply to individual subjects, but can not
+    reliably be assigned to one. Rows are `{form_id, index, <value>}`, where
+    `index` is the position of the value in the source list. **`index` is not a
+    subject index**: do not join these rows to `/subjects` on `index`.
+
+    `GET /nj/use_of_force/attributes` lists the attributes, their shapes and
+    value columns.
+
+
+    ## Caveats
+
+    * `agency_county` is the county of the *agency*, not of the incident. The
+    incident location is `incident_municipality` /
+    `incident_municipality_county`.
+
+    * `other_officer_involved` is only populated for 2020 and 2021, so it is
+    not available as a count dimension. `subject_injured_count` is not one
+    either, because `/counts/subjects?by=injured` already covers it.
+
+    * One `officer_name_id` can appear with several spellings of the officer
+    name. `officer_name` is the most common one; the others are listed at
+    `/officers/{officer_name_id}/name_variants`.
+
+servers:
+  - url: "{protocol}://{server}"
+    variables:
+      protocol:
+        default: https
+        enum:
+          - https
+          - http
+      server:
+        default: api.tor-gu.com
+tags:
+- name: incidents
+  description: Use of force incidents and their subjects
+- name: attributes
+  description: Multi-value incident and incident-subject fields
+- name: agencies
+  description: Reporting agencies
+- name: officers
+  description: Officers
+- name: counts
+  description: Aggregate counts
+paths:
+  /nj/use_of_force/incidents:
+    summary: Get use of force incidents
+    parameters:
+    - $ref: '#/components/parameters/year'
+    - $ref: '#/components/parameters/startDate'
+    - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agency'
+    - $ref: '#/components/parameters/agencyCounty'
+    - $ref: '#/components/parameters/incidentMunicipality'
+    - $ref: '#/components/parameters/incidentMunicipalityCounty'
+    - $ref: '#/components/parameters/officerNameIdQuery'
+    - $ref: '#/components/parameters/pageNumber'
+    - $ref: '#/components/parameters/pageSize'
+    get:
+      description: >
+        All incidents matching the filters, ordered by `form_id`.
+      responses:
+        '200':
+          description: Incidents matching the filters
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"form_id": 15937, "report_number": "UOF20-10-5", "incident_case_number": "20-41343", "incident_date_1": "2020-10-01", "agency_county": "Passaic County", "agency_name": "Clifton PD", "incident_municipality": "Clifton city", "incident_municipality_county": "Passaic County", "officer_name_id": 27195, "officer_name": "Fabricio Martinez", "officer_age": 29, "officer_race": null, "officer_rank": "Not Provided", "officer_gender": "Other", "officer_injured": false, "video_footage": "Yes", "indoors": false, "outdoors": true, "subject_count": 1, "subject_injured_count": 0, "other_officer_involved": true, "officer_in_uniform": true}
+                - {"form_id": 15951, "report_number": "UOF20-10-7", "incident_case_number": "M20-20063", "incident_date_1": "2020-10-01", "agency_county": "Ocean County", "agency_name": "Manchester Twp PD", "incident_municipality": "Manchester township", "incident_municipality_county": "Ocean County", "officer_name_id": 11732, "officer_name": "Theodore Cooke", "officer_age": 44, "officer_race": null, "officer_rank": "Not Provided", "officer_gender": "Other", "officer_injured": false, "video_footage": "Yes", "indoors": true, "outdoors": false, "subject_count": 1, "subject_injured_count": 0, "other_officer_involved": true, "officer_in_uniform": true}
+                links:
+                  self: https://api.tor-gu.com/nj/use_of_force/incidents?year=2020&page_number=1&page_size=2
+                  next: https://api.tor-gu.com/nj/use_of_force/incidents?year=2020&page_number=2&page_size=2
+                meta:
+                  record_count: 3879
+                  page_count: 1940
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - incidents
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${IncidentsFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/incidents/{form_id}:
+    summary: Get a use of force incident by form_id
+    parameters:
+    - $ref: '#/components/parameters/formId'
+    get:
+      responses:
+        '200':
+          description: The incident with the provided `form_id`
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"form_id": 16301, "report_number": "UOF20-10-5", "incident_case_number": "21 - 4948", "incident_date_1": "2021-04-08", "agency_county": "Gloucester County", "agency_name": "Clayton PD", "incident_municipality": "Clayton borough", "incident_municipality_county": "Gloucester County", "officer_name_id": 5516, "officer_name": "Stanley Williams", "officer_age": 63, "officer_race": null, "officer_rank": "Not Provided", "officer_gender": "Other", "officer_injured": false, "video_footage": "Yes", "indoors": false, "outdoors": true, "subject_count": 2, "subject_injured_count": 1, "other_officer_involved": true, "officer_in_uniform": true}
+                links: {"self": "https://api.tor-gu.com/nj/use_of_force/incidents/16301"}
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - incidents
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${IncidentsFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/incidents/{form_id}/subjects:
+    summary: Get the subjects of a use of force incident
+    parameters:
+    - $ref: '#/components/parameters/formId'
+    - $ref: '#/components/parameters/pageNumber'
+    - $ref: '#/components/parameters/pageSize'
+    get:
+      responses:
+        '200':
+          description: The subjects of the incident with the provided `form_id`, ordered by `index`
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"form_id": 16301, "index": 1, "arrested": false, "type": "Person", "age": 23, "juvenile": false, "race": "Black", "gender": "Female", "injured": false, "injured_prior": false}
+                - {"form_id": 16301, "index": 2, "arrested": null, "type": null, "age": 26, "juvenile": false, "race": null, "gender": null, "injured": true, "injured_prior": false}
+                links: {"self": "https://api.tor-gu.com/nj/use_of_force/incidents/16301/subjects?page_number=1&page_size=100"}
+                meta:
+                  record_count: 2
+                  page_count: 1
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - incidents
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${IncidentsFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/incidents/{form_id}/attributes/{attribute}:
+    summary: Get the values of one attribute for a use of force incident
+    parameters:
+    - $ref: '#/components/parameters/formId'
+    - $ref: '#/components/parameters/attribute'
+    - $ref: '#/components/parameters/pageNumber'
+    - $ref: '#/components/parameters/pageSize'
+    get:
+      description: >
+        The rows of one attribute table for the incident. For `incident_subject`
+        attributes, rows are ordered by `index`, the position in the source list
+        (not a subject index).
+      responses:
+        '200':
+          description: The attribute rows for the incident with the provided `form_id`
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              examples:
+                incident:
+                  summary: An `incident` attribute (/incidents/16301/attributes/type)
+                  value:
+                    data:
+                    - {"form_id": 16301, "type": "Potential Mental Health Incident"}
+                    - {"form_id": 16301, "type": "Suspicious person"}
+                    - {"form_id": 16301, "type": "Disturbance (drinking, fighting, disorderly)"}
+                    links: {"self": "https://api.tor-gu.com/nj/use_of_force/incidents/16301/attributes/type?page_number=1&page_size=100"}
+                    meta:
+                      record_count: 3
+                      page_count: 1
+                incident_subject:
+                  summary: An `incident_subject` attribute (/incidents/19542/attributes/subject_resistance)
+                  value:
+                    data:
+                    - {"form_id": 19542, "index": 1, "subject_resistance": "Verbal"}
+                    - {"form_id": 19542, "index": 2, "subject_resistance": "Verbal"}
+                    - {"form_id": 19542, "index": 3, "subject_resistance": "Aggressive resistance (attempt to attack or harm)"}
+                    links: {"self": "https://api.tor-gu.com/nj/use_of_force/incidents/19542/attributes/subject_resistance?page_number=1&page_size=100"}
+                    meta:
+                      record_count: 3
+                      page_count: 1
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - incidents
+      - attributes
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AttributesFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/subjects:
+    summary: Get the subjects of use of force incidents
+    parameters:
+    - $ref: '#/components/parameters/year'
+    - $ref: '#/components/parameters/startDate'
+    - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agency'
+    - $ref: '#/components/parameters/agencyCounty'
+    - $ref: '#/components/parameters/incidentMunicipality'
+    - $ref: '#/components/parameters/incidentMunicipalityCounty'
+    - $ref: '#/components/parameters/officerNameIdQuery'
+    - $ref: '#/components/parameters/pageNumber'
+    - $ref: '#/components/parameters/pageSize'
+    get:
+      description: >
+        The subjects of all incidents matching the filters, ordered by
+        `form_id` and `index`.
+      responses:
+        '200':
+          description: Subjects of the incidents matching the filters
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"form_id": 15937, "index": 1, "arrested": true, "type": "Person", "age": 27, "juvenile": false, "race": "Black", "gender": "Male", "injured": false, "injured_prior": false}
+                - {"form_id": 15951, "index": 1, "arrested": true, "type": "Person", "age": 23, "juvenile": false, "race": "Black", "gender": "Female", "injured": false, "injured_prior": true}
+                links:
+                  self: https://api.tor-gu.com/nj/use_of_force/subjects?page_number=1&page_size=2
+                  next: https://api.tor-gu.com/nj/use_of_force/subjects?page_number=2&page_size=2
+                meta:
+                  record_count: 112149
+                  page_count: 56075
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - incidents
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${IncidentsFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/attributes:
+    summary: Get the list of attributes
+    get:
+      description: >
+        The codebook: every attribute, the R table it comes from, its shape
+        (`incident` or `incident_subject`) and the name of its value column.
+      responses:
+        '200':
+          description: All attributes
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"attribute": "contact_origin", "table": "incident_contact_origin", "shape": "incident", "value_column": "contact_origin"}
+                - {"attribute": "lighting", "table": "incident_lighting", "shape": "incident", "value_column": "lighting"}
+                - {"attribute": "location_type", "table": "incident_location_type", "shape": "incident", "value_column": "location_type"}
+                - {"attribute": "officer_injury_type", "table": "incident_officer_injury_type", "shape": "incident", "value_column": "officer_injury_type"}
+                - {"attribute": "officer_medical_treatment", "table": "incident_officer_medical_treatment", "shape": "incident", "value_column": "officer_medical_treatment"}
+                - {"attribute": "planned_contact", "table": "incident_planned_contact", "shape": "incident", "value_column": "planned_contact"}
+                - {"attribute": "subject_action", "table": "incident_subject_action", "shape": "incident_subject", "value_column": "subject_action"}
+                - {"attribute": "subject_force_type", "table": "incident_subject_force_type", "shape": "incident_subject", "value_column": "force_type"}
+                - {"attribute": "subject_injury", "table": "incident_subject_injury", "shape": "incident_subject", "value_column": "subject_injury"}
+                - {"attribute": "subject_medical_treatment", "table": "incident_subject_medical_treatment", "shape": "incident_subject", "value_column": "subject_medical_treatment"}
+                - {"attribute": "subject_perceived_condition", "table": "incident_subject_perceived_condition", "shape": "incident_subject", "value_column": "perceived_condition"}
+                - {"attribute": "subject_reason_not_arrested", "table": "incident_subject_reason_not_arrested", "shape": "incident_subject", "value_column": "reason_not_arrested"}
+                - {"attribute": "subject_resistance", "table": "incident_subject_resistance", "shape": "incident_subject", "value_column": "subject_resistance"}
+                - {"attribute": "type", "table": "incident_type", "shape": "incident", "value_column": "type"}
+                - {"attribute": "video_type", "table": "incident_video_type", "shape": "incident", "value_column": "video_type"}
+                - {"attribute": "weather", "table": "incident_weather", "shape": "incident", "value_column": "weather"}
+                links: {"self": "https://api.tor-gu.com/nj/use_of_force/attributes"}
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - attributes
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AttributesFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/attributes/{attribute}:
+    summary: Get all rows of an attribute table
+    parameters:
+    - $ref: '#/components/parameters/attribute'
+    - $ref: '#/components/parameters/year'
+    - $ref: '#/components/parameters/startDate'
+    - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agency'
+    - $ref: '#/components/parameters/agencyCounty'
+    - $ref: '#/components/parameters/incidentMunicipality'
+    - $ref: '#/components/parameters/incidentMunicipalityCounty'
+    - $ref: '#/components/parameters/officerNameIdQuery'
+    - $ref: '#/components/parameters/pageNumber'
+    - $ref: '#/components/parameters/pageSize'
+    get:
+      description: >
+        The rows of one attribute table for all incidents matching the
+        filters, ordered by `form_id` (and `index`, for `incident_subject`
+        attributes).
+      responses:
+        '200':
+          description: Attribute rows for the incidents matching the filters
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"form_id": 15937, "type": "Disturbance (drinking, fighting, disorderly)"}
+                - {"form_id": 15951, "type": "MV/Traffic Stop"}
+                - {"form_id": 15952, "type": "Eluding"}
+                links:
+                  self: https://api.tor-gu.com/nj/use_of_force/attributes/type?page_number=1&page_size=3
+                  next: https://api.tor-gu.com/nj/use_of_force/attributes/type?page_number=2&page_size=3
+                meta:
+                  record_count: 150415
+                  page_count: 50139
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - attributes
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AttributesFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/attributes/{attribute}/levels:
+    summary: Get the allowed values of an attribute
+    parameters:
+    - $ref: '#/components/parameters/attribute'
+    get:
+      description: >
+        The declared values of the attribute, in their declared order. A
+        declared value is not necessarily present in the data.
+      responses:
+        '200':
+          description: Levels of the attribute
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"attribute": "weather", "position": 1, "level": "Clear"}
+                - {"attribute": "weather", "position": 2, "level": "Cloudy"}
+                - {"attribute": "weather", "position": 3, "level": "Fog"}
+                - {"attribute": "weather", "position": 4, "level": "Rain"}
+                - {"attribute": "weather", "position": 5, "level": "Snow/Sleet/Ice"}
+                links: {"self": "https://api.tor-gu.com/nj/use_of_force/attributes/weather/levels"}
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - attributes
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AttributesFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/agencies:
+    summary: Get all reporting agencies
+    parameters:
+    - $ref: '#/components/parameters/pageNumber'
+    - $ref: '#/components/parameters/pageSize'
+    get:
+      description: >
+        Every (`agency_name`, `agency_county`) pair in the data, with its
+        number of incidents, ordered by `agency_name` and `agency_county`.
+        Some agency names (e.g. "Washington Twp PD") are shared by agencies in
+        different counties, so a name can appear more than once. Some incidents
+        have no `agency_county`, so it can be `null`. To get the incidents of
+        an agency, use `/nj/use_of_force/incidents?agency=...`, adding
+        `agency_county` where the name is ambiguous.
+      responses:
+        '200':
+          description: All agencies
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"agency_name": "Aberdeen Twp PD", "agency_county": "Monmouth County", "incident_count": 157}
+                - {"agency_name": "Absecon City PD", "agency_county": "Atlantic County", "incident_count": 144}
+                - {"agency_name": "Allendale PD", "agency_county": "Bergen County", "incident_count": 20}
+                links:
+                  self: https://api.tor-gu.com/nj/use_of_force/agencies?page_number=1&page_size=3
+                  next: https://api.tor-gu.com/nj/use_of_force/agencies?page_number=2&page_size=3
+                meta:
+                  record_count: 539
+                  page_count: 180
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - agencies
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${IncidentsFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/officers/{officer_name_id}:
+    summary: Get an officer by officer_name_id
+    parameters:
+    - $ref: '#/components/parameters/officerNameId'
+    get:
+      description: >
+        The officer's most common name and number of incidents. To get the
+        officer's incidents, use
+        `/nj/use_of_force/incidents?officer_name_id=...`.
+      responses:
+        '200':
+          description: The officer with the provided `officer_name_id`
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"officer_name_id": 17048, "officer_name": "Ronald Morello", "incident_count": 4}
+                links: {"self": "https://api.tor-gu.com/nj/use_of_force/officers/17048"}
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - officers
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OfficersFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/officers/{officer_name_id}/name_variants:
+    summary: Get every spelling of an officer's name
+    parameters:
+    - $ref: '#/components/parameters/officerNameId'
+    get:
+      responses:
+        '200':
+          description: Every name variant recorded for the provided `officer_name_id`
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"officer_name_id": 17048, "officer_name": "Ron Morello"}
+                - {"officer_name_id": 17048, "officer_name": "Ronald Morello"}
+                - {"officer_name_id": 17048, "officer_name": "Ronald Morello Sr"}
+                links: {"self": "https://api.tor-gu.com/nj/use_of_force/officers/17048/name_variants"}
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - officers
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OfficersFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/counts/incidents:
+    summary: Count incidents, grouped by up to three dimensions
+    parameters:
+    - $ref: '#/components/parameters/byIncidents'
+    - $ref: '#/components/parameters/year'
+    - $ref: '#/components/parameters/startDate'
+    - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agency'
+    - $ref: '#/components/parameters/agencyCounty'
+    - $ref: '#/components/parameters/incidentMunicipality'
+    - $ref: '#/components/parameters/incidentMunicipalityCounty'
+    - $ref: '#/components/parameters/officerNameIdQuery'
+    - $ref: '#/components/parameters/pageNumber'
+    - $ref: '#/components/parameters/pageSize'
+    get:
+      description: >
+        The number of distinct incidents matching the filters, for each
+        combination of the `by` dimensions, ordered by the `by` columns. Only
+        combinations with a non-zero count are returned, and `null` is its own
+        group. Values with declared levels are ordered as their levels (see
+        `/attributes/{attribute}/levels`), with `null` last.
+
+
+        When `by` includes an attribute, an incident with several values of
+        that attribute is counted once under each value, so the counts can add
+        up to more than the number of incidents.
+      responses:
+        '200':
+          description: Incident counts
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              examples:
+                byYear:
+                  summary: by=year
+                  value:
+                    data:
+                    - {"year": 2020, "count": 3879}
+                    - {"year": 2021, "count": 16105}
+                    - {"year": 2022, "count": 17499}
+                    - {"year": 2023, "count": 19105}
+                    - {"year": 2024, "count": 19768}
+                    - {"year": 2025, "count": 19135}
+                    - {"year": 2026, "count": 14517}
+                    links: {"self": "https://api.tor-gu.com/nj/use_of_force/counts/incidents?by=year&page_number=1&page_size=100"}
+                    meta:
+                      record_count: 7
+                      page_count: 1
+                byYearAndAttribute:
+                  summary: by=year,video_type&year=2023
+                  value:
+                    data:
+                    - {"year": 2023, "video_type": "Body Worn", "count": 18259}
+                    - {"year": 2023, "video_type": "CED Camera", "count": 95}
+                    - {"year": 2023, "video_type": "Cell Phone", "count": 114}
+                    links:
+                      self: https://api.tor-gu.com/nj/use_of_force/counts/incidents?by=year%2Cvideo_type&year=2023&page_number=1&page_size=3
+                      next: https://api.tor-gu.com/nj/use_of_force/counts/incidents?by=year%2Cvideo_type&year=2023&page_number=2&page_size=3
+                    meta:
+                      record_count: 8
+                      page_count: 3
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - counts
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CountsFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /nj/use_of_force/counts/subjects:
+    summary: Count subjects, grouped by up to three dimensions
+    parameters:
+    - $ref: '#/components/parameters/bySubjects'
+    - $ref: '#/components/parameters/year'
+    - $ref: '#/components/parameters/startDate'
+    - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agency'
+    - $ref: '#/components/parameters/agencyCounty'
+    - $ref: '#/components/parameters/incidentMunicipality'
+    - $ref: '#/components/parameters/incidentMunicipalityCounty'
+    - $ref: '#/components/parameters/officerNameIdQuery'
+    - $ref: '#/components/parameters/pageNumber'
+    - $ref: '#/components/parameters/pageSize'
+    get:
+      description: >
+        The number of subjects of the incidents matching the filters, for each
+        combination of the `by` dimensions, ordered by the `by` columns. Only
+        combinations with a non-zero count are returned, and `null` is its own
+        group. Values with declared levels are ordered as their levels (see
+        `/attributes/{attribute}/levels`), with `null` last.
+      responses:
+        '200':
+          description: Subject counts
+          content:
+            'application/vnd.api+json':
+              schema:
+                $ref: '#/components/schemas/success'
+              example:
+                data:
+                - {"agency_county": "Essex County", "race": "American Indian", "count": 11}
+                - {"agency_county": "Essex County", "race": "Asian", "count": 58}
+                - {"agency_county": "Essex County", "race": "Black", "count": 8294}
+                links:
+                  self: https://api.tor-gu.com/nj/use_of_force/counts/subjects?agency_county=Essex%20County&by=agency_county%2Crace&page_number=1&page_size=3
+                  next: https://api.tor-gu.com/nj/use_of_force/counts/subjects?agency_county=Essex%20County&by=agency_county%2Crace&page_number=2&page_size=3
+                meta:
+                  record_count: 8
+                  page_count: 3
+        '400':
+          description: Bad Request
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '404':
+          description: Not Found
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+        '500':
+          description: Internal Server Error
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: '#/components/schemas/failure'
+      tags:
+      - counts
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CountsFunction.Arn}/invocations"
+        responses:
+          default:
+            statusCode: "201"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+components:
+  schemas:
+    success:
+      type: object
+      required:
+        - data
+        - links
+      properties:
+        data:
+          $ref: "#/components/schemas/data"
+        links:
+          $ref: "#/components/schemas/links"
+        meta:
+          $ref: "#/components/schemas/meta"
+    data:
+      oneOf:
+        - type: array
+          items:
+            $ref: '#/components/schemas/incident'
+        - type: array
+          items:
+            $ref: '#/components/schemas/subject'
+        - type: array
+          items:
+            $ref: '#/components/schemas/incidentAttributeRow'
+        - type: array
+          items:
+            $ref: '#/components/schemas/incidentSubjectAttributeRow'
+        - type: array
+          items:
+            $ref: '#/components/schemas/codebookRow'
+        - type: array
+          items:
+            $ref: '#/components/schemas/levelRow'
+        - type: array
+          items:
+            $ref: '#/components/schemas/agency'
+        - type: array
+          items:
+            $ref: '#/components/schemas/officer'
+        - type: array
+          items:
+            $ref: '#/components/schemas/nameVariant'
+        - type: array
+          items:
+            $ref: '#/components/schemas/countRow'
+    links:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/link"
+    link:
+      type: string
+      format: uri-reference
+    meta:
+      type: object
+      properties:
+        record_count:
+          type: integer
+        page_count:
+          type: integer
+    formId:
+      description: Unique identifier of an incident, present in the source data
+      type: integer
+      example: 16301
+    officerNameId:
+      description: >
+        Officer identifier. In the source data, this is column `UserID`.
+      type: integer
+      example: 17048
+    county:
+      type: string
+      enum: ["Atlantic County", "Bergen County", "Burlington County", "Camden County", "Cape May County", "Cumberland County", "Essex County", "Gloucester County", "Hudson County", "Hunterdon County", "Mercer County", "Middlesex County", "Monmouth County", "Morris County", "Ocean County", "Passaic County", "Salem County", "Somerset County", "Sussex County", "Union County", "Warren County"]
+      example: Essex County
+    race:
+      type: string
+      enum: ["American Indian", "Asian", "Asian/Pacific Islander", "Black", "Hispanic", "Native Hawaiian or other Pacific Islander", "Pacific Islander", "Two or more races", "White", "Other"]
+    gender:
+      type: string
+      enum: ["Male", "Female", "Non-Binary/X", "Other"]
+    incident:
+      type: object
+      required:
+        - form_id
+      properties:
+        form_id:
+          $ref: '#/components/schemas/formId'
+        report_number:
+          description: Identifier of a use of force report (potentially containing multiple incidents)
+          type: string
+          example: UOF20-10-5
+        incident_case_number:
+          description: Internal agency case number assigned to the incident
+          type: string
+          example: "21 - 4948"
+        incident_date_1:
+          description: >
+            Date of the incident. This is source column `IncidentDate`, the date
+            the OAG dashboard uses.
+          type: string
+          format: date
+          example: "2021-04-08"
+        agency_county:
+          description: County of the *agency* (not the incident location). Source column `County`.
+          allOf:
+            - $ref: '#/components/schemas/county'
+          nullable: true
+        agency_name:
+          description: Name of the agency
+          type: string
+          example: Clayton PD
+        incident_municipality:
+          description: Municipality where the incident occurred
+          type: string
+          nullable: true
+          example: Clayton borough
+        incident_municipality_county:
+          description: County where the incident occurred
+          allOf:
+            - $ref: '#/components/schemas/county'
+          nullable: true
+        officer_name_id:
+          allOf:
+            - $ref: '#/components/schemas/officerNameId'
+          nullable: true
+        officer_name:
+          description: >
+            The most common name associated with `officer_name_id` (source
+            column `OfficerName`). See `/officers/{officer_name_id}/name_variants`
+            for the others. `null` when `officer_name_id` is `null`: for those
+            incidents the source has no officer identity.
+          type: string
+          nullable: true
+          example: Stanley Williams
+        officer_age:
+          type: integer
+          nullable: true
+          example: 63
+        officer_race:
+          allOf:
+            - $ref: '#/components/schemas/race'
+          nullable: true
+        officer_rank:
+          type: string
+          nullable: true
+          example: Not Provided
+        officer_gender:
+          allOf:
+            - $ref: '#/components/schemas/gender'
+          nullable: true
+        officer_injured:
+          description: True if the officer was injured. C.f. attributes `officer_injury_type` and `officer_medical_treatment`.
+          type: boolean
+          nullable: true
+        video_footage:
+          description: Whether there is video footage. C.f. attribute `video_type`.
+          type: string
+          enum: ["Yes", "No", "Unknown"]
+        indoors:
+          description: True if the incident was indoors. Not exclusive of `outdoors`.
+          type: boolean
+        outdoors:
+          description: True if the incident was outdoors. Not exclusive of `indoors`.
+          type: boolean
+        subject_count:
+          description: Number of subjects. Matches the number of rows at `/incidents/{form_id}/subjects`.
+          type: integer
+        subject_injured_count:
+          description: >
+            Number of injured subjects (source column `TotalSubInjuredInIncident`).
+            Wherever both are known, it equals the number of the incident's
+            subjects with `injured` true. (In njoaguof releases before 1.16.0
+            this field was unreliable.)
+          type: integer
+          nullable: true
+        other_officer_involved:
+          description: >
+            True if another officer was involved. Only populated for 2020 and
+            2021; `null` for almost every later incident.
+          type: boolean
+          nullable: true
+        officer_in_uniform:
+          type: boolean
+          nullable: true
+    subject:
+      type: object
+      required:
+        - form_id
+        - index
+      properties:
+        form_id:
+          $ref: '#/components/schemas/formId'
+        index:
+          description: Subject index within the incident (1 = first subject)
+          type: integer
+          example: 1
+        arrested:
+          type: boolean
+          nullable: true
+        type:
+          type: string
+          enum: ["Person", "Animal", "Other", "Unknown Subject(s)"]
+          nullable: true
+        age:
+          type: integer
+          nullable: true
+        juvenile:
+          type: boolean
+          nullable: true
+        race:
+          allOf:
+            - $ref: '#/components/schemas/race'
+          nullable: true
+        gender:
+          allOf:
+            - $ref: '#/components/schemas/gender'
+          nullable: true
+        injured:
+          description: True if the subject was injured in the incident
+          type: boolean
+          nullable: true
+        injured_prior:
+          description: True if the subject was injured *before* the incident
+          type: boolean
+          nullable: true
+    incidentAttributeRow:
+      description: >
+        A row of an `incident`-shaped attribute. The value column is named as
+        in the codebook (`value_column`).
+      type: object
+      required:
+        - form_id
+      properties:
+        form_id:
+          $ref: '#/components/schemas/formId'
+      additionalProperties:
+        type: string
+    incidentSubjectAttributeRow:
+      description: >
+        A row of an `incident_subject`-shaped attribute. The value column is
+        named as in the codebook (`value_column`).
+      type: object
+      required:
+        - form_id
+        - index
+      properties:
+        form_id:
+          $ref: '#/components/schemas/formId'
+        index:
+          description: >
+            Position of the value in the source list (1 = first). This is
+            **not** a subject index.
+          type: integer
+      additionalProperties:
+        type: string
+    codebookRow:
+      type: object
+      required:
+        - attribute
+        - table
+        - shape
+        - value_column
+      properties:
+        attribute:
+          $ref: '#/components/schemas/attributeName'
+        table:
+          description: Name of the table in the njoaguof R package
+          type: string
+          example: incident_subject_force_type
+        shape:
+          type: string
+          enum: ["incident", "incident_subject"]
+        value_column:
+          description: Name of the column holding the value
+          type: string
+          example: force_type
+    levelRow:
+      type: object
+      required:
+        - attribute
+        - position
+        - level
+      properties:
+        attribute:
+          $ref: '#/components/schemas/attributeName'
+        position:
+          description: Position of the level in the declared order (1 = first)
+          type: integer
+        level:
+          type: string
+          example: Clear
+    agency:
+      type: object
+      required:
+        - agency_name
+        - incident_count
+      properties:
+        agency_name:
+          type: string
+          example: Aberdeen Twp PD
+        agency_county:
+          allOf:
+            - $ref: '#/components/schemas/county'
+          nullable: true
+        incident_count:
+          type: integer
+          example: 157
+    officer:
+      type: object
+      required:
+        - officer_name_id
+        - officer_name
+        - incident_count
+      properties:
+        officer_name_id:
+          $ref: '#/components/schemas/officerNameId'
+        officer_name:
+          description: The most common name associated with `officer_name_id`
+          type: string
+          example: Ronald Morello
+        incident_count:
+          type: integer
+          example: 4
+    nameVariant:
+      type: object
+      required:
+        - officer_name_id
+        - officer_name
+      properties:
+        officer_name_id:
+          $ref: '#/components/schemas/officerNameId'
+        officer_name:
+          description: A name variant
+          type: string
+          example: Ron Morello
+    countRow:
+      description: >
+        One column per `by` dimension, named as the dimension, plus `count`.
+      type: object
+      required:
+        - count
+      properties:
+        count:
+          type: integer
+          example: 3879
+      additionalProperties:
+        nullable: true
+        oneOf:
+          - type: string
+          - type: integer
+          - type: boolean
+    attributeName:
+      type: string
+      enum:
+        - contact_origin
+        - lighting
+        - location_type
+        - officer_injury_type
+        - officer_medical_treatment
+        - planned_contact
+        - subject_action
+        - subject_force_type
+        - subject_injury
+        - subject_medical_treatment
+        - subject_perceived_condition
+        - subject_reason_not_arrested
+        - subject_resistance
+        - type
+        - video_type
+        - weather
+      example: weather
+    error:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: "404"
+        detail:
+          type: string
+          example: "Item not found"
+    failure:
+      type: object
+      required:
+        - errors
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/error'
+  parameters:
+    pageSize:
+      name: page_size
+      in: query
+      description: Maximum number of results to return in a single reply
+      required: false
+      schema:
+        type: integer
+        format: int32
+        default: 100
+        example: 100
+    pageNumber:
+      name: page_number
+      in: query
+      description: Page number
+      required: false
+      schema:
+        type: integer
+        format: int32
+        default: 1
+        example: 1
+    formId:
+      name: form_id
+      in: path
+      description: Unique identifier of an incident
+      required: true
+      schema:
+        $ref: '#/components/schemas/formId'
+    officerNameId:
+      name: officer_name_id
+      in: path
+      description: Officer identifier
+      required: true
+      schema:
+        $ref: '#/components/schemas/officerNameId'
+    attribute:
+      name: attribute
+      in: path
+      description: >
+        Attribute name: the njoaguof table name without its `incident_` prefix.
+        An unknown attribute returns 404.
+      required: true
+      schema:
+        $ref: '#/components/schemas/attributeName'
+    year:
+      name: year
+      in: query
+      description: Only incidents in this year (of `incident_date_1`)
+      required: false
+      schema:
+        type: integer
+        minimum: 2020
+        maximum: 2026
+        example: 2023
+    startDate:
+      name: start_date
+      in: query
+      description: Only incidents on or after this date (`incident_date_1`)
+      required: false
+      schema:
+        type: string
+        format: date
+        example: "2023-01-01"
+    endDate:
+      name: end_date
+      in: query
+      description: >
+        Only incidents on or before this date (`incident_date_1`). Must not be
+        before `start_date`.
+      required: false
+      schema:
+        type: string
+        format: date
+        example: "2023-06-30"
+    agency:
+      name: agency
+      in: query
+      description: >
+        Only incidents reported by this agency (exact `agency_name`, as listed at
+        `/nj/use_of_force/agencies`)
+      required: false
+      schema:
+        type: string
+        example: Newark PD
+    agencyCounty:
+      name: agency_county
+      in: query
+      description: Only incidents reported by agencies in this county
+      required: false
+      schema:
+        $ref: '#/components/schemas/county'
+    incidentMunicipality:
+      name: incident_municipality
+      in: query
+      description: Only incidents in this municipality (e.g. "Newark city")
+      required: false
+      schema:
+        type: string
+        example: Newark city
+    incidentMunicipalityCounty:
+      name: incident_municipality_county
+      in: query
+      description: Only incidents in this county
+      required: false
+      schema:
+        $ref: '#/components/schemas/county'
+    officerNameIdQuery:
+      name: officer_name_id
+      in: query
+      description: Only incidents involving this officer
+      required: false
+      schema:
+        $ref: '#/components/schemas/officerNameId'
+    byIncidents:
+      name: by
+      in: query
+      description: >
+        Comma-separated list of 1 to 3 distinct dimensions to group by. Allowed:
+        `year`, `month` (as `YYYY-MM`), `agency`, `agency_county`,
+        `incident_municipality`, `incident_municipality_county`,
+        `officer_gender`, `officer_race`, `video_footage`, and **at most one**
+        attribute name (see `/nj/use_of_force/attributes`).
+      required: true
+      schema:
+        type: string
+        example: year,agency_county
+    bySubjects:
+      name: by
+      in: query
+      description: >
+        Comma-separated list of 1 to 3 distinct dimensions to group by. Allowed:
+        `year`, `month` (as `YYYY-MM`), `agency`, `agency_county`,
+        `incident_municipality`, `incident_municipality_county`,
+        `officer_gender`, `officer_race`, `video_footage`, and the subject fields
+        `type`, `race`, `gender`, `arrested`, `juvenile`, `injured`. Attributes
+        are not allowed.
+      required: true
+      schema:
+        type: string
+        example: agency_county,race

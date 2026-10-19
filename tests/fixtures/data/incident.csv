@@ -1,0 +1,7 @@
+"form_id","report_number","incident_case_number","incident_date_1","agency_county","agency_name","incident_municipality","incident_municipality_county","officer_name_id","officer_name","officer_age","officer_race","officer_rank","officer_gender","officer_injured","video_footage","indoors","outdoors","subject_count","subject_injured_count","other_officer_involved","officer_in_uniform"
+101,"UOF21-3-1","21-0001",2021-03-05,"Essex County","Newark PD","Newark city","Essex County",500,"Ann Smith",34,"White","Sergeant","Female",FALSE,"Yes",TRUE,FALSE,2,1,TRUE,TRUE
+102,"UOF21-7-2","21-0002",2021-07-10,"Essex County","Newark PD","Newark city","Essex County",501,"Bob Jones",45,"Black","Not Provided","Male",TRUE,"No",FALSE,TRUE,1,0,,TRUE
+103,"UOF22-1-3","22-0003",2022-01-15,"Gloucester County","Washington Twp PD","Washington township","Gloucester County",500,"Ann Smith",35,"White","Sergeant","Female",FALSE,"Yes",FALSE,TRUE,1,0,,
+104,"UOF22-6-4",,2022-06-30,"Morris County","Washington Twp PD","Washington township","Morris County",502,"Cy Young",,,"Officer","Male",,"Unknown",TRUE,TRUE,2,2,,FALSE
+105,"UOF23-2-5","23-0005",2023-02-01,,"Atlantic City PD","Atlantic City city","Atlantic County",,,29,,,,FALSE,"No",FALSE,TRUE,1,0,,TRUE
+106,"UOF23-12-6","23-0006",2023-12-31,"Essex County","Newark PD",,,501,"Bob Jones",47,"Black","Not Provided","Male",FALSE,"Yes",FALSE,TRUE,1,,,TRUE
