@@ -43,12 +43,13 @@ from collections import defaultdict
 
 DB_NAME = "njoaguof.sqlite"
 
-# Character columns stored as codes (many repeats); others stay text
+# Character columns stored as codes (many repeats); others stay text.
+# officer_name stays text: with ~23k distinct names, its labels would cost
+# more to load on a cold start (~130 ms at 512 MB) than the codes save.
 CODED_CHARACTER = {
     ("incident", "agency_name"),
     ("incident", "incident_municipality"),
     ("incident", "officer_rank"),
-    ("incident", "officer_name"),
 }
 
 # Incident columns the shared filters use (common_layer/uofdb.py), all indexed
