@@ -52,7 +52,7 @@ CODED_CHARACTER = {
     ("incident", "officer_rank"),
 }
 
-# Incident columns the shared filters use (common_layer/uofdb.py), all indexed
+# Incident columns the shared filters use (common_layer/uofdb.py)
 FILTER_COLUMNS = [
     "incident_date_1",
     "agency_name",
@@ -60,6 +60,14 @@ FILTER_COLUMNS = [
     "incident_municipality",
     "incident_municipality_county",
     "officer_name_id",
+]
+
+# Their indexes. Each equality filter is indexed together with the date, so a
+# filter plus a date range (year, start_date, end_date) is answered from the
+# index alone ("covering"): counting the matches doesn't read incident rows,
+# which on a cold Lambda means far fewer reads from disk (REVIEW §5b).
+FILTER_INDEXES = [["incident_date_1"]] + [
+    [c, "incident_date_1"] for c in FILTER_COLUMNS if c != "incident_date_1"
 ]
 
 # Counts: incident columns stored as inc.<name>.i32 (besides form_id, date,
@@ -332,8 +340,8 @@ def build_incidents(path, ex):
     inc_cols = [c for c, _ in ex.types["incident"]]
     subj_cols = [c for c, _ in ex.types["subject"]]
     stored_table(con, ex, "incident", inc_cols, ["form_id"])
-    for column in FILTER_COLUMNS:
-        create_index(con, "incident", [column])
+    for columns in FILTER_INDEXES:
+        create_index(con, "incident", columns)
     stored_table(
         con, ex, "subject", subj_cols, ["form_id", "index"], without_rowid=True
     )
@@ -415,8 +423,8 @@ def build_attributes(path, ex):
 
     # The incident columns the filters need, nothing else
     stored_table(con, ex, "incident", ["form_id"] + FILTER_COLUMNS, ["form_id"])
-    for column in FILTER_COLUMNS:
-        create_index(con, "incident", [column])
+    for columns in FILTER_INDEXES:
+        create_index(con, "incident", columns)
     labels_table(con, ex, [("incident", c) for c in FILTER_COLUMNS])
     expected["incident"] = len(ex.tables["incident"])
     finish_db(con, expected)
