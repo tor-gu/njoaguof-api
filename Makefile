@@ -27,6 +27,10 @@ export_data:
 data:
 	python scripts/build_data.py data .
 
-.PHONY: style unit_test example_test integration_test export_data data
+# The spec as template.yaml gives it to API Gateway (without examples)
+apigateway_spec:
+	python scripts/apigateway_spec.py use-of-force-openapi.yaml apigateway-openapi.yaml
+
+.PHONY: style unit_test example_test integration_test export_data data apigateway_spec
 
 all: style unit_test data example_test

@@ -60,7 +60,8 @@ jobs:
       - uses: aws-actions/setup-sam@89ddb14d60e682855e3fea4be85b3c56485de310 # v3
         with:
           use-installer: true
-      - run: make data
+      - run: pip install pyyaml
+      - run: make data apigateway_spec
       - name: data sizes
         run: |
           { echo "## data"; echo '```'; cat data/SOURCE; echo
@@ -130,6 +131,10 @@ jobs:
         with:
           name: sam-build
           path: sam-build
+      # sam-build/template.yaml includes ../apigateway-openapi.yaml, from this
+      # checkout rather than the artifact
+      - run: pip install pyyaml
+      - run: make apigateway_spec
       - name: sam deploy
         run: |
           DATA_VERSION=$(sed -n 's/^version=//p' data/SOURCE)

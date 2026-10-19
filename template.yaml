@@ -172,11 +172,13 @@ Resources:
     Properties:
       StageName: Prod
       Name: !Sub "${EnvPrefix}UseOfForceApi"
+      # The spec without its examples (CloudFormation rejects their nulls):
+      # make apigateway_spec writes it from use-of-force-openapi.yaml
       DefinitionBody:
         Fn::Transform:
           Name: AWS::Include
           Parameters:
-            Location: use-of-force-openapi.yaml
+            Location: apigateway-openapi.yaml
       # Starting values; CloudFront caches repeated requests in front of this
       MethodSettings:
         - ResourcePath: "/*"

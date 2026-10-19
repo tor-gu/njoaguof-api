@@ -62,3 +62,23 @@ def test_handlers_exist():
             assert re.search(
                 rf"^{handler} = ", f.read(), re.M
             ), f"{name}: {handler} not in {path}"
+
+
+def test_apigateway_spec_has_no_examples_or_nulls(tmp_path):
+    from scripts import apigateway_spec
+
+    spec = apigateway_spec.without_examples(load("use-of-force-openapi.yaml"))
+    assert apigateway_spec.null_paths(spec) == []
+    text = yaml.safe_dump(spec)
+    assert "example" not in text
+    # The integrations API Gateway needs are still there
+    assert text.count("x-amazon-apigateway-integration") == 13
+
+
+def test_null_paths():
+    from scripts import apigateway_spec
+
+    assert apigateway_spec.null_paths({"a": [1, {"b": None}], "c": None}) == [
+        "/a/1/b",
+        "/c",
+    ]

@@ -270,6 +270,9 @@ sandbox.ipynb
 sam-build/
 build.toml
 
+# The spec for API Gateway, without examples (make apigateway_spec)
+/apigateway-openapi.yaml
+
 # Data built from data/ by scripts/build_data.py (make data), packaged by sam build
 /incidents/data/
 /attributes/data/
