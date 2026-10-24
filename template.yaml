@@ -60,6 +60,7 @@ Resources:
     Properties:
       CodeUri: incidents/
       FunctionName: !Sub "${EnvPrefix}njoaguof-api-incidents"
+      Description: "njoaguof-api: incidents, subjects and agencies"
       Handler: app.incidents_api.incidents_handler
       Events:
         GetIncidents:
@@ -98,6 +99,7 @@ Resources:
     Properties:
       CodeUri: attributes/
       FunctionName: !Sub "${EnvPrefix}njoaguof-api-attributes"
+      Description: "njoaguof-api: attribute tables and their levels"
       Handler: app.attributes_api.attributes_handler
       Events:
         GetAttributes:
@@ -130,6 +132,7 @@ Resources:
     Properties:
       CodeUri: officers/
       FunctionName: !Sub "${EnvPrefix}njoaguof-api-officers"
+      Description: "njoaguof-api: officers and their name variants"
       Handler: app.officers_api.officers_handler
       Events:
         GetOfficer:
@@ -151,6 +154,7 @@ Resources:
     Properties:
       CodeUri: counts/
       FunctionName: !Sub "${EnvPrefix}njoaguof-api-counts"
+      Description: "njoaguof-api: incident and subject counts"
       Handler: app.counts_api.counts_handler
       MemorySize: 1024
       Events:
