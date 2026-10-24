@@ -21,7 +21,8 @@ variable "github_subject_prefix" {
 variable "envs" {
   description = "Deploy environments, keyed by GitHub environment name (prod deploys from main, dev from dev)"
   type = map(object({
-    stack_name = string # the SAM stack
+    stack_name      = string # the SAM stack
+    distribution_id = string # the CloudFront distribution whose cache the deploy clears
   }))
 }
 

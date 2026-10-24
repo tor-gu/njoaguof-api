@@ -4,10 +4,12 @@ github_subject_prefix = "repo:tor-gu@99346055/njoaguof-api@1424958506"
 
 envs = {
   dev = {
-    stack_name = "NjoaguofApiDev"
+    stack_name      = "NjoaguofApiDev"
+    distribution_id = "E1J4ZXO8DVB64P" # test-api.tor-gu.com
   }
   prod = {
-    stack_name = "NjoaguofApi"
+    stack_name      = "NjoaguofApi"
+    distribution_id = "E1769VXNMM34EW" # api.tor-gu.com
   }
 }
 

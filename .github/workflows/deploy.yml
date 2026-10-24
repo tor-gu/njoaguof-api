@@ -135,6 +135,11 @@ jobs:
       # checkout rather than the artifact
       - run: pip install pyyaml
       - run: make apigateway_spec
+      # Compared after sam deploy, to tell whether the deploy changed the stack
+      - name: stack update time
+        run: |
+          echo "STACK_UPDATED_BEFORE=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+              --query 'Stacks[0].LastUpdatedTime' --output text 2>/dev/null || echo none)" >> "$GITHUB_ENV"
       - name: sam deploy
         run: |
           DATA_VERSION=$(sed -n 's/^version=//p' data/SOURCE)
@@ -153,6 +158,21 @@ jobs:
                            EnvPrefix=\"${ENV_PREFIX}\" \
                            DataVersion="$DATA_VERSION" \
                            ApiRoot="$API_ROOT"
+      # CloudFront caches responses for up to 24 h. Data, code and layer
+      # changes can all change them, so clear the cache after any deploy that
+      # changed the stack.
+      - name: clear CloudFront cache
+        run: |
+          after=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+              --query 'Stacks[0].LastUpdatedTime' --output text)
+          { echo "## CloudFront cache ($DISTRIBUTION_ID)"
+            if [ "$after" = "$STACK_UPDATED_BEFORE" ]; then
+              echo "Stack unchanged, cache not cleared."
+            else
+              id=$(aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" \
+                  --paths '/nj/use_of_force/*' --query Invalidation.Id --output text)
+              echo "Invalidation \`$id\` for \`/nj/use_of_force/*\`."
+            fi; } | tee -a "$GITHUB_STEP_SUMMARY"
       - name: stack outputs
         run: |
           { echo "## $STACK_NAME outputs"; echo '```'

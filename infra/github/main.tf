@@ -91,7 +91,7 @@ resource "aws_iam_role_policy" "readonly" {
 }
 
 # --- deploy ---
-# One role per environment: sam deploy.
+# One role per environment: sam deploy, then clearing the CloudFront cache.
 
 data "aws_iam_policy_document" "deploy_trust" {
   for_each = var.envs
@@ -193,6 +193,14 @@ data "aws_iam_policy_document" "deploy" {
     sid       = "FetchTorguapiLayer"
     actions   = ["lambda:GetLayerVersion"]
     resources = [local.layer_arn]
+  }
+
+  # After a deploy that changed the stack, clear /nj/use_of_force/* in the
+  # distribution in front of this environment (defined in torgu-api-cloudfront)
+  statement {
+    sid       = "InvalidateCache"
+    actions   = ["cloudfront:CreateInvalidation"]
+    resources = ["arn:aws:cloudfront::${local.account}:distribution/${each.value.distribution_id}"]
   }
 }
 
