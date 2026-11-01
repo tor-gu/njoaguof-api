@@ -57,6 +57,8 @@ def test_spec_example(api_url, resource, function, example):
         ("attributes/colour", 404),
         ("counts/incidents", 400),
         ("counts/subjects?by=race&agency=Nowhere%20PD", 404),
+        ("incidents?agency_id=NJLEA9999", 404),
+        ("incidents?agency_id=bad", 400),
     ],
 )
 def test_status(api_url, path, status):
@@ -64,3 +66,17 @@ def test_status(api_url, path, status):
     assert response.status_code == status, response.text
     if status != 200:
         assert response.json()["errors"][0]["status"] == str(status)
+
+
+def test_agency_id_filter_matches_agency(api_url):
+    """agency_id selects the same incidents as the agency's name and county"""
+
+    def counts(query):
+        response = requests.get(
+            f"{api_url}counts/incidents?by=year&{query}", timeout=30
+        )
+        assert response.status_code == 200, response.text
+        return response.json()["data"]
+
+    by_name = counts("agency=Clifton%20PD&agency_county=Passaic%20County")
+    assert counts("agency_id=NJLEA0425") == by_name

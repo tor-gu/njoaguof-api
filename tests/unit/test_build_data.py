@@ -43,6 +43,7 @@ def test_storage(fixture_build):
     assert storage["incident_date_1"] == "date"
     assert storage["agency_county"] == "code"
     assert storage["agency_name"] == "code"
+    assert storage["agency_id"] == "code"
     assert storage["officer_injured"] == "logical"
     assert storage["report_number"] == "text"
     row = con.execute(
@@ -65,14 +66,26 @@ def test_codes_follow_levels(fixture_build):
 def test_agency_order(fixture_build):
     con = sqlite3.connect(fixture_build["incidents"])
     rows = con.execute(
-        "SELECT agency_name, agency_county, incident_count FROM agency ORDER BY rowid"
+        "SELECT agency_name, agency_county, agency_id, incident_count"
+        " FROM agency ORDER BY rowid"
     )
     assert rows.fetchall() == [
-        ("Atlantic City PD", None, 1),
-        ("Newark PD", "Essex County", 3),
-        ("Washington Twp PD", "Gloucester County", 1),
-        ("Washington Twp PD", "Morris County", 1),
+        ("Atlantic City PD", None, "NJLEA0002", 1),
+        ("Newark PD", "Essex County", "NJLEA0199", 3),
+        ("Washington Twp PD", "Gloucester County", "NJLEA0223", 1),
+        ("Washington Twp PD", "Morris County", "NJLEA0388", 1),
     ]
+
+
+def test_agency_id_index(fixture_build):
+    con = sqlite3.connect(fixture_build["incidents"])
+    indexes = [
+        [r[2] for r in con.execute(f"PRAGMA index_info('{name}')")]
+        for (name,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'incident'"
+        )
+    ]
+    assert ["agency_id", "incident_date_1"] in indexes
 
 
 def test_counts_columns(fixture_build):
@@ -93,6 +106,13 @@ def test_counts_columns(fixture_build):
         "Newark PD",
         "Washington Twp PD",
     ]
+    assert labels["incident.agency_id"] == [
+        "NJLEA0002",
+        "NJLEA0199",
+        "NJLEA0223",
+        "NJLEA0388",
+    ]
+    assert read_i32(d, "inc.agency_id") == [2, 2, 3, 4, 1, 2]
     assert labels["attribute.video_type"][0] == "Body Worn"
 
 
@@ -138,3 +158,14 @@ def test_reads_gzipped_csv(fixture_copy, tmp_path):
     outputs, _ = build_data.build_all(str(fixture_copy), str(tmp_path / "out"))
     con = sqlite3.connect(outputs["incidents"])
     assert con.execute("SELECT COUNT(*) FROM subject").fetchone()[0] == 8
+
+
+def test_agency_with_two_ids_fails(fixture_copy, tmp_path):
+    path = fixture_copy / "incident.csv"
+    path.write_text(path.read_text().replace('"NJLEA0388"', '"NJLEA0223"'))
+    build_data.build_all(str(fixture_copy), str(tmp_path / "ok"))  # one id, two pairs
+    lines = path.read_text().splitlines()
+    lines[1] = lines[1].replace('"NJLEA0199"', '"NJLEA0001"')  # Newark PD: two ids
+    path.write_text("\n".join(lines) + "\n")
+    with pytest.raises(build_data.BuildError, match="agency_ids"):
+        build_data.build_all(str(fixture_copy), str(tmp_path / "out"))

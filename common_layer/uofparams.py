@@ -47,6 +47,8 @@ PAGE_PARAMS = ["page_number", "page_size"]
 
 DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
+AGENCY_ID_PATTERN = re.compile(r"^NJLEA[0-9]{4}$")
+
 
 @dataclass(frozen=True)
 class Filters:
@@ -55,6 +57,7 @@ class Filters:
     year: int | None = None
     start_date: str | None = None
     end_date: str | None = None
+    agency_id: str | None = None
     agency: str | None = None
     agency_county: str | None = None
     incident_municipality: str | None = None
@@ -133,6 +136,12 @@ def parse_county(name, value):
     return value
 
 
+def parse_agency_id(name, value):
+    if not AGENCY_ID_PATTERN.match(value):
+        raise InvalidRequest(f"Invalid {name} {value} (expected NJLEA and 4 digits)")
+    return value
+
+
 def parse_text(name, value):
     if value == "":
         raise InvalidRequest(f"Empty {name}")
@@ -143,6 +152,7 @@ PARSERS = {
     "year": parse_int,
     "start_date": parse_date,
     "end_date": parse_date,
+    "agency_id": parse_agency_id,
     "agency": parse_text,
     "agency_county": parse_county,
     "incident_municipality": parse_text,

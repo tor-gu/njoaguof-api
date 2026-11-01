@@ -47,6 +47,7 @@ DB_NAME = "njoaguof.sqlite"
 # officer_name stays text: with ~23k distinct names, its labels would cost
 # more to load on a cold start (~130 ms at 512 MB) than the codes save.
 CODED_CHARACTER = {
+    ("incident", "agency_id"),
     ("incident", "agency_name"),
     ("incident", "incident_municipality"),
     ("incident", "officer_rank"),
@@ -55,6 +56,7 @@ CODED_CHARACTER = {
 # Incident columns the shared filters use (common_layer/uofdb.py)
 FILTER_COLUMNS = [
     "incident_date_1",
+    "agency_id",
     "agency_name",
     "agency_county",
     "incident_municipality",
@@ -73,6 +75,7 @@ FILTER_INDEXES = [["incident_date_1"]] + [
 # Counts: incident columns stored as inc.<name>.i32 (besides form_id, date,
 # year, month and officer_name_id), by source column
 COUNT_INCIDENT_CODED = {
+    "agency_id": "agency_id",
     "agency": "agency_name",
     "agency_county": "agency_county",
     "incident_municipality": "incident_municipality",
@@ -346,18 +349,34 @@ def build_incidents(path, ex):
         con, ex, "subject", subj_cols, ["form_id", "index"], without_rowid=True
     )
 
-    # /agencies, in output order: agency_name, then agency_county with null last
+    # /agencies, in output order: agency_name, then agency_county with null last.
+    # One row per (agency_name, agency_county); each has a single njlea
+    # agency_id, but an agency_id can have several rows.
     counts = defaultdict(int)
+    agency_ids = defaultdict(set)
     for r in ex.tables["incident"]:
-        counts[(r["agency_name"], r["agency_county"])] += 1
+        key = (r["agency_name"], r["agency_county"])
+        counts[key] += 1
+        agency_ids[key].add(r["agency_id"])
+    for (name, county), ids in agency_ids.items():
+        if len(ids) != 1:
+            raise BuildError(f"agency {name!r} ({county}) has agency_ids {sorted(ids)}")
     agencies = sorted(
         counts.items(), key=lambda kv: (kv[0][0], kv[0][1] is None, kv[0][1] or "")
     )
     create_table(
         con,
         "agency",
-        ['"agency_name" TEXT', '"agency_county" TEXT', '"incident_count" INTEGER'],
-        ([name, county, n] for (name, county), n in agencies),
+        [
+            '"agency_name" TEXT',
+            '"agency_county" TEXT',
+            '"agency_id" TEXT',
+            '"incident_count" INTEGER',
+        ],
+        (
+            [name, county, next(iter(agency_ids[(name, county)])), n]
+            for (name, county), n in agencies
+        ),
     )
 
     columns_table(con, ex, ["incident", "subject"])

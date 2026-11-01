@@ -112,6 +112,8 @@ def test_bad_requests(endpoint, query):
 
 def test_not_found():
     assert get("incidents", {"by": "year", "agency": "Nowhere PD"})[0] == 404
+    assert get("incidents", {"by": "year", "agency_id": "NJLEA9999"})[0] == 404
+    assert get("incidents", {"by": "year", "agency_id": "NJLEA99"})[0] == 400
     assert get("incidents", {"by": "year", "year": "2019"})[0] == 404
     assert get("incidents", {"by": "year", "page_number": "2"})[0] == 404
 
@@ -120,6 +122,8 @@ def test_not_found():
     "dimensions,filters",
     [
         (("agency", "officer_gender"), Filters()),
+        (("agency_id", "agency_county"), Filters()),
+        (("agency_id", "officer_gender"), Filters(agency_id="NJLEA0199")),
         (("incident_municipality", "officer_race"), Filters(agency="Newark PD")),
         (
             ("incident_municipality_county", "video_footage"),

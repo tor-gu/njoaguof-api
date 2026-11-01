@@ -26,6 +26,9 @@ def test_incidents_all():
         ({"start_date": "2021-07-10", "end_date": "2022-01-15"}, [102, 103]),
         ({"agency": "Washington Twp PD"}, [103, 104]),
         ({"agency": "Washington Twp PD", "agency_county": "Morris County"}, [104]),
+        ({"agency_id": "NJLEA0199"}, [101, 102, 106]),
+        ({"agency_id": "NJLEA0388"}, [104]),
+        ({"agency_id": "NJLEA0199", "year": "2023"}, [106]),
         ({"agency_county": "Essex County"}, [101, 102, 106]),
         ({"incident_municipality": "Newark city"}, [101, 102]),
         ({"incident_municipality_county": "Atlantic County"}, [105]),
@@ -43,6 +46,8 @@ def test_incidents_filtered(query, expected):
     "query",
     [
         {"agency": "Nowhere PD"},
+        {"agency_id": "NJLEA9999"},
+        {"agency_id": "NJLEA0199", "agency": "Washington Twp PD"},
         {"year": "2019"},
         {"agency_county": "Salem County"},
         {"page_number": "2"},
@@ -55,7 +60,14 @@ def test_incidents_not_found(query):
 
 
 @pytest.mark.parametrize(
-    "query", [{"colour": "red"}, {"year": "x"}, {"agency_county": "Essex"}]
+    "query",
+    [
+        {"colour": "red"},
+        {"year": "x"},
+        {"agency_county": "Essex"},
+        {"agency_id": "199"},
+        {"agency_id": "njlea0199"},
+    ],
 )
 def test_incidents_bad_request(query):
     status, _ = get("/incidents", query=query)
@@ -93,6 +105,7 @@ def test_incident_values():
             "report_number": "UOF23-2-5",
             "incident_case_number": "23-0005",
             "incident_date_1": "2023-02-01",
+            "agency_id": "NJLEA0002",
             "agency_county": None,
             "agency_name": "Atlantic City PD",
             "incident_municipality": "Atlantic City city",
@@ -168,15 +181,22 @@ def test_agencies():
     status, body = get("/agencies", query={"page_size": "3"})
     assert status == 200
     assert body["data"] == [
-        {"agency_name": "Atlantic City PD", "agency_county": None, "incident_count": 1},
+        {
+            "agency_name": "Atlantic City PD",
+            "agency_county": None,
+            "agency_id": "NJLEA0002",
+            "incident_count": 1,
+        },
         {
             "agency_name": "Newark PD",
             "agency_county": "Essex County",
+            "agency_id": "NJLEA0199",
             "incident_count": 3,
         },
         {
             "agency_name": "Washington Twp PD",
             "agency_county": "Gloucester County",
+            "agency_id": "NJLEA0223",
             "incident_count": 1,
         },
     ]

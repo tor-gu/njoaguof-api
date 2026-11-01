@@ -36,16 +36,20 @@ tables <- c(
 
 lib <- file.path(tempdir(), "njoaguof-lib")
 dir.create(lib, showWarnings = FALSE)
+# Since v2.2.0 njoaguof imports njlea (and so njmunicipalities). Missing hard
+# dependencies are installed into lib too (from Remotes); installed ones are
+# used as they are.
+.libPaths(c(lib, .libPaths()))
 local_git <- Sys.getenv("NJOAGUOF_GIT")
 if (nzchar(local_git)) {
   remotes::install_git(
     paste0("file://", normalizePath(local_git)),
-    ref = ref, lib = lib, upgrade = "never", dependencies = FALSE, quiet = TRUE
+    ref = ref, lib = lib, upgrade = "never", dependencies = NA, quiet = TRUE
   )
 } else {
   remotes::install_github(
     "tor-gu/njoaguof",
-    ref = ref, lib = lib, upgrade = "never", dependencies = FALSE, quiet = TRUE
+    ref = ref, lib = lib, upgrade = "never", dependencies = NA, quiet = TRUE
   )
 }
 desc <- packageDescription("njoaguof", lib.loc = lib)

@@ -21,6 +21,7 @@ DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 INCIDENT_DIMENSIONS = [
     "year",
     "month",
+    "agency_id",
     "agency",
     "agency_county",
     "incident_municipality",
@@ -35,6 +36,7 @@ MAX_DIMENSIONS = 3
 
 # Text filters -> the incident column they match
 FILTER_DIMENSIONS = {
+    "agency_id": "agency_id",
     "agency": "agency",
     "agency_county": "agency_county",
     "incident_municipality": "incident_municipality",

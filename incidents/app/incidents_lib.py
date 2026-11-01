@@ -80,12 +80,18 @@ def get_subjects(db, filters, page):
 
 
 def get_agencies(db, page):
-    """(agency_name, agency_county, incident_count), in the order built"""
+    """(agency_name, agency_county, agency_id, incident_count), in the order built"""
     return paged(
         db,
-        "SELECT agency_name, agency_county, incident_count FROM agency ORDER BY rowid",
+        "SELECT agency_name, agency_county, agency_id, incident_count"
+        " FROM agency ORDER BY rowid",
         "SELECT COUNT(*) FROM agency",
         (),
         page,
-        lambda r: {"agency_name": r[0], "agency_county": r[1], "incident_count": r[2]},
+        lambda r: {
+            "agency_name": r[0],
+            "agency_county": r[1],
+            "agency_id": r[2],
+            "incident_count": r[3],
+        },
     )

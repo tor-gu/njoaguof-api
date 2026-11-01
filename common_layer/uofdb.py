@@ -9,6 +9,7 @@ DB_NAME = "njoaguof.sqlite"
 
 # Filter -> incident column; text filters are matched through labels
 FILTER_COLUMNS = {
+    "agency_id": "agency_id",
     "agency": "agency_name",
     "agency_county": "agency_county",
     "incident_municipality": "incident_municipality",

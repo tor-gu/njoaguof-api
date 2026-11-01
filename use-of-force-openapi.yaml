@@ -1,6 +1,6 @@
 openapi: '3.0.2'
 info:
-  version: '1.0.0'
+  version: '1.1.0'
   title: 'njoaguof-api'
   description: >
     # NJ OAG Use of Force data, from 2020-10-01 to 2026-09-30
@@ -23,7 +23,7 @@ info:
     * A request that matches nothing, or a `page_number` past the last page,
     returns `404`. An unknown query parameter or an invalid value returns `400`.
 
-    * Incident filters (`year`, `start_date`, `end_date`, `agency`,
+    * Incident filters (`year`, `start_date`, `end_date`, `agency_id`, `agency`,
     `agency_county`, `incident_municipality`, `incident_municipality_county`,
     `officer_name_id`) are combined with AND. On subject, attribute and count
     endpoints they select the incidents, and the rows linked to those incidents
@@ -48,6 +48,17 @@ info:
 
     `GET /nj/use_of_force/attributes` lists the attributes, their shapes and
     value columns.
+
+
+    ## Agencies
+
+    Every incident has an `agency_id`, the agency's identifier in
+    [njlea](https://github.com/tor-gu/njlea), a registry of NJ law enforcement
+    agencies (e.g. `NJLEA0199` is Newark PD). Use it to join with other NJ law
+    enforcement datasets, and with njlea for canonical agency names, agency
+    level and function, and the municipalities each agency serves. Nothing in
+    this API links an agency to a municipality: `incident_municipality` is
+    where an incident happened, not the area the agency serves.
 
 
     ## Caveats
@@ -92,6 +103,7 @@ paths:
     - $ref: '#/components/parameters/year'
     - $ref: '#/components/parameters/startDate'
     - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agencyId'
     - $ref: '#/components/parameters/agency'
     - $ref: '#/components/parameters/agencyCounty'
     - $ref: '#/components/parameters/incidentMunicipality'
@@ -111,8 +123,8 @@ paths:
                 $ref: '#/components/schemas/success'
               example:
                 data:
-                - {"form_id": 15937, "report_number": "UOF20-10-5", "incident_case_number": "20-41343", "incident_date_1": "2020-10-01", "agency_county": "Passaic County", "agency_name": "Clifton PD", "incident_municipality": "Clifton city", "incident_municipality_county": "Passaic County", "officer_name_id": 27195, "officer_name": "Fabricio Martinez", "officer_age": 29, "officer_race": null, "officer_rank": "Not Provided", "officer_gender": "Other", "officer_injured": false, "video_footage": "Yes", "indoors": false, "outdoors": true, "subject_count": 1, "subject_injured_count": 0, "other_officer_involved": true, "officer_in_uniform": true}
-                - {"form_id": 15951, "report_number": "UOF20-10-7", "incident_case_number": "M20-20063", "incident_date_1": "2020-10-01", "agency_county": "Ocean County", "agency_name": "Manchester Twp PD", "incident_municipality": "Manchester township", "incident_municipality_county": "Ocean County", "officer_name_id": 11732, "officer_name": "Theodore Cooke", "officer_age": 44, "officer_race": null, "officer_rank": "Not Provided", "officer_gender": "Other", "officer_injured": false, "video_footage": "Yes", "indoors": true, "outdoors": false, "subject_count": 1, "subject_injured_count": 0, "other_officer_involved": true, "officer_in_uniform": true}
+                - {"form_id": 15937, "report_number": "UOF20-10-5", "incident_case_number": "20-41343", "incident_date_1": "2020-10-01", "agency_id": "NJLEA0425", "agency_county": "Passaic County", "agency_name": "Clifton PD", "incident_municipality": "Clifton city", "incident_municipality_county": "Passaic County", "officer_name_id": 27195, "officer_name": "Fabricio Martinez", "officer_age": 29, "officer_race": null, "officer_rank": "Not Provided", "officer_gender": "Other", "officer_injured": false, "video_footage": "Yes", "indoors": false, "outdoors": true, "subject_count": 1, "subject_injured_count": 0, "other_officer_involved": true, "officer_in_uniform": true}
+                - {"form_id": 15951, "report_number": "UOF20-10-7", "incident_case_number": "M20-20063", "incident_date_1": "2020-10-01", "agency_id": "NJLEA0405", "agency_county": "Ocean County", "agency_name": "Manchester Twp PD", "incident_municipality": "Manchester township", "incident_municipality_county": "Ocean County", "officer_name_id": 11732, "officer_name": "Theodore Cooke", "officer_age": 44, "officer_race": null, "officer_rank": "Not Provided", "officer_gender": "Other", "officer_injured": false, "video_footage": "Yes", "indoors": true, "outdoors": false, "subject_count": 1, "subject_injured_count": 0, "other_officer_involved": true, "officer_in_uniform": true}
                 links:
                   self: https://api.tor-gu.com/nj/use_of_force/incidents?year=2020&page_number=1&page_size=2
                   next: https://api.tor-gu.com/nj/use_of_force/incidents?year=2020&page_number=2&page_size=2
@@ -163,7 +175,7 @@ paths:
                 $ref: '#/components/schemas/success'
               example:
                 data:
-                - {"form_id": 16301, "report_number": "UOF20-10-5", "incident_case_number": "21 - 4948", "incident_date_1": "2021-04-08", "agency_county": "Gloucester County", "agency_name": "Clayton PD", "incident_municipality": "Clayton borough", "incident_municipality_county": "Gloucester County", "officer_name_id": 5516, "officer_name": "Stanley Williams", "officer_age": 63, "officer_race": null, "officer_rank": "Not Provided", "officer_gender": "Other", "officer_injured": false, "video_footage": "Yes", "indoors": false, "outdoors": true, "subject_count": 2, "subject_injured_count": 1, "other_officer_involved": true, "officer_in_uniform": true}
+                - {"form_id": 16301, "report_number": "UOF20-10-5", "incident_case_number": "21 - 4948", "incident_date_1": "2021-04-08", "agency_id": "NJLEA0208", "agency_county": "Gloucester County", "agency_name": "Clayton PD", "incident_municipality": "Clayton borough", "incident_municipality_county": "Gloucester County", "officer_name_id": 5516, "officer_name": "Stanley Williams", "officer_age": 63, "officer_race": null, "officer_rank": "Not Provided", "officer_gender": "Other", "officer_injured": false, "video_footage": "Yes", "indoors": false, "outdoors": true, "subject_count": 2, "subject_injured_count": 1, "other_officer_involved": true, "officer_in_uniform": true}
                 links: {"self": "https://api.tor-gu.com/nj/use_of_force/incidents/16301"}
         '400':
           description: Bad Request
@@ -326,6 +338,7 @@ paths:
     - $ref: '#/components/parameters/year'
     - $ref: '#/components/parameters/startDate'
     - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agencyId'
     - $ref: '#/components/parameters/agency'
     - $ref: '#/components/parameters/agencyCounty'
     - $ref: '#/components/parameters/incidentMunicipality'
@@ -453,6 +466,7 @@ paths:
     - $ref: '#/components/parameters/year'
     - $ref: '#/components/parameters/startDate'
     - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agencyId'
     - $ref: '#/components/parameters/agency'
     - $ref: '#/components/parameters/agencyCounty'
     - $ref: '#/components/parameters/incidentMunicipality'
@@ -574,12 +588,14 @@ paths:
     get:
       description: >
         Every (`agency_name`, `agency_county`) pair in the data, with its
-        number of incidents, ordered by `agency_name` and `agency_county`.
-        Some agency names (e.g. "Washington Twp PD") are shared by agencies in
-        different counties, so a name can appear more than once. Some incidents
-        have no `agency_county`, so it can be `null`. To get the incidents of
-        an agency, use `/nj/use_of_force/incidents?agency=...`, adding
-        `agency_county` where the name is ambiguous.
+        njlea `agency_id` and its number of incidents, ordered by
+        `agency_name` and `agency_county`. Some agency names (e.g. "Washington
+        Twp PD") are shared by agencies in different counties, so a name can
+        appear more than once. Some incidents have no `agency_county`, so it
+        can be `null`. An `agency_id` can also appear more than once, when one
+        agency reported under several names or counties (e.g. Rowan University
+        of NJ, in Camden and Gloucester counties). To get the incidents of an
+        agency, use `/nj/use_of_force/incidents?agency_id=...`.
       responses:
         '200':
           description: All agencies
@@ -589,9 +605,9 @@ paths:
                 $ref: '#/components/schemas/success'
               example:
                 data:
-                - {"agency_name": "Aberdeen Twp PD", "agency_county": "Monmouth County", "incident_count": 157}
-                - {"agency_name": "Absecon City PD", "agency_county": "Atlantic County", "incident_count": 144}
-                - {"agency_name": "Allendale PD", "agency_county": "Bergen County", "incident_count": 20}
+                - {"agency_name": "Aberdeen Twp PD", "agency_county": "Monmouth County", "agency_id": "NJLEA0301", "incident_count": 157}
+                - {"agency_name": "Absecon City PD", "agency_county": "Atlantic County", "agency_id": "NJLEA0001", "incident_count": 144}
+                - {"agency_name": "Allendale PD", "agency_county": "Bergen County", "agency_id": "NJLEA0020", "incident_count": 20}
                 links:
                   self: https://api.tor-gu.com/nj/use_of_force/agencies?page_number=1&page_size=3
                   next: https://api.tor-gu.com/nj/use_of_force/agencies?page_number=2&page_size=3
@@ -733,6 +749,7 @@ paths:
     - $ref: '#/components/parameters/year'
     - $ref: '#/components/parameters/startDate'
     - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agencyId'
     - $ref: '#/components/parameters/agency'
     - $ref: '#/components/parameters/agencyCounty'
     - $ref: '#/components/parameters/incidentMunicipality'
@@ -825,6 +842,7 @@ paths:
     - $ref: '#/components/parameters/year'
     - $ref: '#/components/parameters/startDate'
     - $ref: '#/components/parameters/endDate'
+    - $ref: '#/components/parameters/agencyId'
     - $ref: '#/components/parameters/agency'
     - $ref: '#/components/parameters/agencyCounty'
     - $ref: '#/components/parameters/incidentMunicipality'
@@ -988,6 +1006,8 @@ components:
           type: string
           format: date
           example: "2021-04-08"
+        agency_id:
+          $ref: '#/components/schemas/agencyId'
         agency_county:
           description: County of the *agency* (not the incident location). Source column `County`.
           allOf:
@@ -1177,10 +1197,18 @@ components:
         level:
           type: string
           example: Clear
+    agencyId:
+      description: >
+        The agency's [njlea](https://github.com/tor-gu/njlea) identifier.
+        Derived from `agency_county` and `agency_name`.
+      type: string
+      pattern: '^NJLEA[0-9]{4}$'
+      example: NJLEA0199
     agency:
       type: object
       required:
         - agency_name
+        - agency_id
         - incident_count
       properties:
         agency_name:
@@ -1190,6 +1218,8 @@ components:
           allOf:
             - $ref: '#/components/schemas/county'
           nullable: true
+        agency_id:
+          $ref: '#/components/schemas/agencyId'
         incident_count:
           type: integer
           example: 157
@@ -1351,6 +1381,16 @@ components:
         type: string
         format: date
         example: "2023-06-30"
+    agencyId:
+      name: agency_id
+      in: query
+      description: >
+        Only incidents reported by this agency (its njlea `agency_id`, as listed
+        at `/nj/use_of_force/agencies`). A well-formed `agency_id` with no
+        incidents returns 404.
+      required: false
+      schema:
+        $ref: '#/components/schemas/agencyId'
     agency:
       name: agency
       in: query
@@ -1395,7 +1435,7 @@ components:
       in: query
       description: >
         Comma-separated list of 1 to 3 distinct dimensions to group by. Allowed:
-        `year`, `month` (as `YYYY-MM`), `agency`, `agency_county`,
+        `year`, `month` (as `YYYY-MM`), `agency_id`, `agency`, `agency_county`,
         `incident_municipality`, `incident_municipality_county`,
         `officer_gender`, `officer_race`, `video_footage`, and **at most one**
         attribute name (see `/nj/use_of_force/attributes`).
@@ -1408,7 +1448,7 @@ components:
       in: query
       description: >
         Comma-separated list of 1 to 3 distinct dimensions to group by. Allowed:
-        `year`, `month` (as `YYYY-MM`), `agency`, `agency_county`,
+        `year`, `month` (as `YYYY-MM`), `agency_id`, `agency`, `agency_county`,
         `incident_municipality`, `incident_municipality_county`,
         `officer_gender`, `officer_race`, `video_footage`, and the subject fields
         `type`, `race`, `gender`, `arrested`, `juvenile`, `injured`. Attributes

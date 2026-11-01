@@ -74,6 +74,13 @@ def test_attribute_rows_filtered():
         )[0]
         == 404
     )
+    status, body = get(
+        "/attributes/{attribute}",
+        {"attribute": "video_type"},
+        {"agency_id": "NJLEA0223"},
+    )
+    assert status == 200
+    assert [r["form_id"] for r in body["data"]] == [103]
 
 
 def test_levels():

@@ -40,16 +40,21 @@ def test_incident_filters():
     filters, link_params = incident_filters(
         {
             "year": "2021",
+            "agency_id": "NJLEA0199",
             "agency_county": "Essex County",
             "officer_name_id": "501",
             "page_size": "5",
         }
     )
     assert filters == Filters(
-        year=2021, agency_county="Essex County", officer_name_id=501
+        year=2021,
+        agency_id="NJLEA0199",
+        agency_county="Essex County",
+        officer_name_id=501,
     )
     assert link_params == {
         "year": "2021",
+        "agency_id": "NJLEA0199",
         "agency_county": "Essex County",
         "officer_name_id": "501",
     }
@@ -68,6 +73,11 @@ def test_incident_filters():
         {"agency_county": "Essex"},
         {"incident_municipality_county": "Nowhere County"},
         {"agency": ""},
+        {"agency_id": ""},
+        {"agency_id": "NJLEA199"},
+        {"agency_id": "NJLEA01999"},
+        {"agency_id": "njlea0199"},
+        {"agency_id": "NJLEA\u0661\u0662\u0663\u0664"},
     ],
 )
 def test_incident_filters_invalid(query):
