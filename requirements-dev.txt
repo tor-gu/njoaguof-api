@@ -5,3 +5,5 @@ black
 isort
 flake8
 openapi-spec-validator
+# README.Rmd's python chunks (make knit)
+pandas

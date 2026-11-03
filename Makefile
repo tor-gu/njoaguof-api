@@ -27,6 +27,14 @@ venv:
 	.venv/bin/pip install --upgrade pip
 	.venv/bin/pip install -r requirements-dev.txt
 
+# README.Rmd's python chunks run through reticulate and need requests and pandas;
+# use the local venv for them if there is one
+ifneq ($(wildcard .venv/bin/python),)
+knit: export RETICULATE_PYTHON ?= $(abspath .venv/bin/python)
+endif
+knit:
+	Rscript -e "rmarkdown::render('README.Rmd')"
+
 # Export the njoaguof tables from a tagged release, e.g. make export_data REF=v2.1.2
 export_data:
 	@test -n "$(REF)" || (echo "Usage: make export_data REF=<njoaguof git ref>" && exit 1)
@@ -40,6 +48,6 @@ data:
 apigateway_spec:
 	$(PYTHON) scripts/apigateway_spec.py use-of-force-openapi.yaml apigateway-openapi.yaml
 
-.PHONY: venv style unit_test example_test integration_test export_data data apigateway_spec
+.PHONY: venv knit style unit_test example_test integration_test export_data data apigateway_spec
 
 all: style unit_test data example_test

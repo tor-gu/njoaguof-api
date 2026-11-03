@@ -1,0 +1,194 @@
+---
+output: github_document
+always_allow_html: true
+---
+
+```{r setup, include=FALSE}
+library(reticulate)
+knitr::opts_chunk$set(comment = "")
+```
+
+# njoaguof-api
+
+This is the source code for the NJ Use of Force API deployed at `api.tor-gu.com/nj/use_of_force/`.
+
+It serves the New Jersey Attorney General's [Use of Force](https://www.njoag.gov/force/) data, from
+October 2020 to the latest release, cleaned and normalized as in the
+[njoaguof data package for R](https://github.com/tor-gu/njoaguof). Field names and values are the
+same as in the R package, which documents the dataset in detail.
+
+## Try it out
+
+### OpenAPI/Swagger
+There is an OpenAPI/swagger document deployed [here](https://tor-gu.com/apis/njoaguof.html)
+that you can play with.
+
+### Endpoints
+All paths are under `https://api.tor-gu.com/nj/use_of_force`.
+
+| Path | Returns |
+|---|---|
+| `/incidents`, `/incidents/{form_id}` | Incidents, one row per use of force report |
+| `/incidents/{form_id}/subjects`, `/subjects` | The subjects of incidents |
+| `/attributes`, `/attributes/{attribute}`, `/attributes/{attribute}/levels` | Multi-value fields (incident type, force type, subject injuries, ...) |
+| `/incidents/{form_id}/attributes/{attribute}` | One incident's values of an attribute |
+| `/agencies` | Every reporting agency, with its `agency_id` and number of incidents |
+| `/officers/{officer_name_id}`, `/officers/{officer_name_id}/name_variants` | An officer's incidents, and the spellings of the officer's name |
+| `/counts/incidents`, `/counts/subjects` | Counts grouped by 1 to 3 dimensions (`by=year,agency_county`, ...) |
+
+The collections take the incident filters `year`, `start_date`, `end_date`, `agency_id`, `agency`,
+`agency_county`, `incident_municipality`, `incident_municipality_county` and `officer_name_id`,
+combined with AND.
+
+### Sample code
+Each endpoint returns paginated results, with a `"next"` url in the `"links"` section
+indicating that there are more results to be retrieved.
+
+This is illustrated in the python code below, which loads Newark PD's 2025 incidents into a
+[pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html).
+Every incident carries the reporting agency's `agency_id`, its identifier in the
+[njlea](https://github.com/tor-gu/njlea) registry of NJ law enforcement agencies. Newark PD is
+`NJLEA0199`.
+```{python}
+import requests
+import pandas as pd
+
+API = "https://api.tor-gu.com/nj/use_of_force"
+
+
+def load_as_df(url):
+    """Retrieve every page of the collection at url and return it as a dataframe"""
+    frames = []
+    while url:
+        resp = requests.get(url)
+        resp.raise_for_status()
+        reply = resp.json()
+        frames.append(pd.DataFrame(reply["data"]))
+        # Keep retrieving pages while there is a 'next' link
+        url = reply["links"].get("next")
+    return pd.concat(frames, ignore_index=True)
+
+
+newark_2025 = load_as_df(f"{API}/incidents?agency_id=NJLEA0199&year=2025&page_size=1000")
+```
+```{r echo=FALSE}
+knitr::kable(head(py$newark_2025[, c(
+  "form_id", "incident_date_1", "agency_id", "agency_name", "incident_municipality",
+  "subject_count", "subject_injured_count"
+)]))
+```
+
+The `counts` endpoints do the aggregation on the server. Here are the ten agencies with the most
+incidents in 2025. `agency_id` is the stable key for an agency: one agency can report under
+several names or counties (Rowan University of NJ appears in both Camden and Gloucester counties),
+so `/agencies` can list an `agency_id` more than once. We name each agency by its most frequent
+entry.
+```{python}
+counts = load_as_df(f"{API}/counts/incidents?by=agency_id&year=2025&page_size=1000")
+agencies = load_as_df(f"{API}/agencies?page_size=1000")
+
+names = (
+    agencies.sort_values("incident_count", ascending=False)
+    .drop_duplicates("agency_id")[["agency_id", "agency_name", "agency_county"]]
+)
+top_10 = counts.nlargest(10, "count").merge(names, how="left", on="agency_id")
+```
+```{r echo=FALSE}
+knitr::kable(py$top_10[, c("agency_id", "agency_name", "agency_county", "count")])
+```
+
+Multi-value fields, like the incident type, are served as attribute tables that join to incidents
+on `form_id`. Here are the ten most common types of Newark PD's 2025 incidents, and the share of
+them in which a subject was injured. (Attributes of the `incident_subject` shape also carry an `index`.
+It is the position of the value in the source list, not a subject index, so don't join those rows
+to `/subjects` on it.)
+```{python}
+types = load_as_df(f"{API}/attributes/type?agency_id=NJLEA0199&year=2025&page_size=1000")
+
+by_type = (
+    types.merge(newark_2025[["form_id", "subject_injured_count"]], on="form_id")
+    .assign(subject_injured=lambda df: df["subject_injured_count"] > 0)
+    .groupby("type")
+    .agg(incidents=("form_id", "count"), share_subject_injured=("subject_injured", "mean"))
+    .nlargest(10, "incidents")
+    .reset_index()
+)
+```
+```{r echo=FALSE}
+knitr::kable(py$by_type, digits = 2)
+```
+
+## Deploying
+This API is implemented as an [AWS SAM](https://aws.amazon.com/serverless/sam/) application
+(`template.yaml`), with four lambdas (incidents, attributes, officers and counts) behind one API
+Gateway. There are no tables: each lambda's data is built from `data/` and packaged with its code.
+A deployment has three parts:
+
+1. The lambda layer [layer_torguapi](https://github.com/tor-gu/layer_torguapi), which needs to be
+   deployed separately (version 10 or later).
+2. The data: CSV exports of the tables in [njoaguof](https://github.com/tor-gu/njoaguof), committed
+   in `data/`, from which `make data` builds each lambda's `data/` directory.
+3. The lambdas and API Gateway, defined in `template.yaml`. The API is defined by the OpenAPI
+   document `use-of-force-openapi.yaml`, and `make apigateway_spec` writes the copy that API Gateway
+   is given (`apigateway-openapi.yaml`, without the examples, which API Gateway rejects).
+
+### Data
+`data/` holds a gzipped CSV for each njoaguof table, `columns.csv` and `levels.csv` (the column
+types and factor levels), and `SOURCE`, which records the njoaguof release they were exported from.
+To export a release (this needs R and the `remotes` package; the release is installed into a
+temporary library):
+```
+make export_data REF=v2.3.0
+```
+
+### Data update
+1. `make export_data REF=<new release>`, and review the diff in `data/` (`columns.csv` and
+   `levels.csv` should only change with the schema).
+2. `make data unit_test example_test`. The example tests reproduce every example reply in
+   `use-of-force-openapi.yaml` from the full data, and each failure prints the new reply: copy the
+   changed values into the spec. Update the date range at the top of the spec.
+3. `make knit`, to refresh the tables in this README.
+4. Push to `dev`, check the dev API, then merge to `main`.
+
+### Local development
+```
+make venv              # .venv, from requirements-dev.txt
+make unit_test         # on the fixtures in tests/fixtures/
+make data example_test # on the full data
+make knit              # README.Rmd -> README.md
+```
+The tests need a copy of the layer's `torguapi` module in `torguapi/` (gitignored), which
+`scripts/fetch_torguapi.sh` downloads.
+
+### Direct deploy
+The application can be deployed directly using the SAM CLI:
+```
+make data apigateway_spec
+sam build
+sam deploy --stack-name MyStackName                                                         \
+           --capabilities CAPABILITY_IAM                                                    \
+           --resolve-s3                                                                     \
+           --parameter-overrides                                                            \
+                TorguapiLayerArn=arn:aws:lambda:us-east-1:123456789012:layer:layer_torguapi \
+                TorguapiLayerVersion=10                                                     \
+                ApiRoot=https://api.example.com                                             \
+                DataVersion=$(sed -n 's/^version=//p' data/SOURCE)
+```
+Replace the `TorguapiLayerXXX` params with the values derived from the `layer_torguapi` deployment.
+
+The `ApiRoot` value is used only for generating the values in `"links"` in the JSON reply. On
+`api.tor-gu.com`, the relationship between the publicly facing API URL and the API Gateway
+endpoints is configured in [torgu-api-cloudfront](https://github.com/tor-gu/torgu-api-cloudfront).
+
+To deploy a second environment alongside the first, give it a resource name prefix (I use `dev-`)
+with the `EnvPrefix` template parameter.
+
+### Using GitHub Actions
+The workflow I use to deploy from GitHub is `.github/workflows/deploy.yml`. A push to `dev` deploys
+the dev stack, and a push to `main` deploys prod once the run is approved. Each run runs the unit
+and example tests, builds the application, deploys it, and, when the deploy changed the stack,
+clears the API's paths from the CloudFront cache. Integration tests run against the dev stack.
+
+The workflow reaches AWS through OIDC roles, defined with [Terraform](https://www.terraform.io/) in
+`infra/github/`: a read-only role for the tests and a deploy role per environment. Its settings
+(stack names, role ARNs, layer version, CloudFront distribution) are in `pipeline/env/`.
