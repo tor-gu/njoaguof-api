@@ -3,7 +3,7 @@ info:
   version: '1.1.0'
   title: 'njoaguof-api'
   description: >
-    # NJ OAG Use of Force data, from 2020-10-01 to 2026-09-30
+    # NJ OAG Use of Force data, from 2020-10-01 to 2026-10-31
 
     A cleaned and normalized version of the NJ Attorney General's Use of Force
     database (https://www.njoag.gov/force/), as published in the
@@ -365,8 +365,8 @@ paths:
                   self: https://api.tor-gu.com/nj/use_of_force/subjects?page_number=1&page_size=2
                   next: https://api.tor-gu.com/nj/use_of_force/subjects?page_number=2&page_size=2
                 meta:
-                  record_count: 112149
-                  page_count: 56075
+                  record_count: 113918
+                  page_count: 56959
         '400':
           description: Bad Request
           content:
@@ -495,8 +495,8 @@ paths:
                   self: https://api.tor-gu.com/nj/use_of_force/attributes/type?page_number=1&page_size=3
                   next: https://api.tor-gu.com/nj/use_of_force/attributes/type?page_number=2&page_size=3
                 meta:
-                  record_count: 150415
-                  page_count: 50139
+                  record_count: 152822
+                  page_count: 50941
         '400':
           description: Bad Request
           content:
@@ -606,8 +606,8 @@ paths:
               example:
                 data:
                 - {"agency_name": "Aberdeen Twp PD", "agency_county": "Monmouth County", "agency_id": "NJLEA0301", "incident_count": 157}
-                - {"agency_name": "Absecon City PD", "agency_county": "Atlantic County", "agency_id": "NJLEA0001", "incident_count": 144}
-                - {"agency_name": "Allendale PD", "agency_county": "Bergen County", "agency_id": "NJLEA0020", "incident_count": 20}
+                - {"agency_name": "Absecon City PD", "agency_county": "Atlantic County", "agency_id": "NJLEA0001", "incident_count": 149}
+                - {"agency_name": "Allendale PD", "agency_county": "Bergen County", "agency_id": "NJLEA0020", "incident_count": 21}
                 links:
                   self: https://api.tor-gu.com/nj/use_of_force/agencies?page_number=1&page_size=3
                   next: https://api.tor-gu.com/nj/use_of_force/agencies?page_number=2&page_size=3
@@ -783,11 +783,11 @@ paths:
                     data:
                     - {"year": 2020, "count": 3879}
                     - {"year": 2021, "count": 16105}
-                    - {"year": 2022, "count": 17499}
-                    - {"year": 2023, "count": 19105}
-                    - {"year": 2024, "count": 19768}
-                    - {"year": 2025, "count": 19135}
-                    - {"year": 2026, "count": 14517}
+                    - {"year": 2022, "count": 17502}
+                    - {"year": 2023, "count": 19107}
+                    - {"year": 2024, "count": 19769}
+                    - {"year": 2025, "count": 19145}
+                    - {"year": 2026, "count": 16259}
                     links: {"self": "https://api.tor-gu.com/nj/use_of_force/counts/incidents?by=year&page_number=1&page_size=100"}
                     meta:
                       record_count: 7
@@ -796,7 +796,7 @@ paths:
                   summary: by=year,video_type&year=2023
                   value:
                     data:
-                    - {"year": 2023, "video_type": "Body Worn", "count": 18259}
+                    - {"year": 2023, "video_type": "Body Worn", "count": 18260}
                     - {"year": 2023, "video_type": "CED Camera", "count": 95}
                     - {"year": 2023, "video_type": "Cell Phone", "count": 114}
                     links:
@@ -867,8 +867,8 @@ paths:
               example:
                 data:
                 - {"agency_county": "Essex County", "race": "American Indian", "count": 11}
-                - {"agency_county": "Essex County", "race": "Asian", "count": 58}
-                - {"agency_county": "Essex County", "race": "Black", "count": 8294}
+                - {"agency_county": "Essex County", "race": "Asian", "count": 61}
+                - {"agency_county": "Essex County", "race": "Black", "count": 8430}
                 links:
                   self: https://api.tor-gu.com/nj/use_of_force/counts/subjects?agency_county=Essex%20County&by=agency_county%2Crace&page_number=1&page_size=3
                   next: https://api.tor-gu.com/nj/use_of_force/counts/subjects?agency_county=Essex%20County&by=agency_county%2Crace&page_number=2&page_size=3
