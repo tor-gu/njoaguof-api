@@ -55,10 +55,12 @@ info:
     Every incident has an `agency_id`, the agency's identifier in
     [njlea](https://github.com/tor-gu/njlea), a registry of NJ law enforcement
     agencies (e.g. `NJLEA0199` is Newark PD). Use it to join with other NJ law
-    enforcement datasets, and with njlea for canonical agency names, agency
-    level and function, and the municipalities each agency serves. Nothing in
-    this API links an agency to a municipality: `incident_municipality` is
-    where an incident happened, not the area the agency serves.
+    enforcement datasets, and with the njlea API
+    ([njlea-api](https://tor-gu.com/apis/njlea.html), at `/nj/lea/*`) for
+    canonical agency names, agency level and function, and the municipalities
+    each agency serves. Nothing in this API links an agency to a municipality:
+    `incident_municipality` is where an incident happened, not the area the
+    agency serves.
 
 
     ## Caveats

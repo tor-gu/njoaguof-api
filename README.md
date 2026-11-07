@@ -145,6 +145,74 @@ by_type = (
 | Pedestrian Stop                              |        52 |                  0.23 |
 | Suspicious person                            |        52 |                  0.15 |
 
+`agency_id` also joins to the [NJ Law Enforcement Agencies
+API](https://tor-gu.com/apis/njlea.html), which serves the njlea
+registry at `api.tor-gu.com/nj/lea/`. Here are the 2025 incidents by the
+level of government and function of the reporting agency.
+
+``` python
+LEA_API = "https://api.tor-gu.com/nj/lea"
+
+registry = load_as_df(f"{LEA_API}/agencies/2025?page_size=1000")
+
+by_level = (
+    counts.merge(registry, how="left", on="agency_id")
+    .groupby(["agency_level", "agency_function"])
+    .agg(agencies=("agency_id", "count"), incidents=("count", "sum"))
+    .sort_values("incidents", ascending=False)
+    .reset_index()
+)
+```
+
+| agency_level | agency_function       | agencies | incidents |
+|:-------------|:----------------------|---------:|----------:|
+| Municipal    | Police                |      425 |     15439 |
+| State        | Police                |        2 |      1092 |
+| State        | Authority or transit  |        1 |       772 |
+| County       | Sheriff               |       20 |       603 |
+| County       | Police                |        2 |       531 |
+| State        | College or university |        7 |       273 |
+| County       | Prosecutor            |       17 |       153 |
+| Bi-state     | Authority or transit  |        3 |       128 |
+| State        | Corrections           |        2 |        96 |
+| County       | Corrections           |        9 |        31 |
+| Private      | College or university |        3 |        17 |
+| State        | Park and conservation |        1 |         6 |
+| County       | Authority or transit  |        1 |         3 |
+| State        | Investigative         |        1 |         1 |
+
+The registry also lists the municipalities each agency polices, so we
+can add them to the top ten from above. Incidents are counted by agency
+here. An agency can police several municipalities, so to count by
+municipality, use the `incident_municipality` field. The registry
+doesn’t include New Jersey State Police links yet, so its `NA` below
+doesn’t mean that it polices no municipalities.
+
+``` python
+served = (
+    load_as_df(f"{LEA_API}/agency_municipalities/2025?page_size=1000")
+    .groupby("agency_id")["municipality"]
+    .agg(", ".join)
+    .reset_index(name="municipalities")
+)
+top_10_served = top_10.merge(
+    registry[["agency_id", "agency_level", "agency_function"]], how="left", on="agency_id"
+).merge(served, how="left", on="agency_id")
+```
+
+| agency_name               | agency_level | agency_function      | municipalities                 | count |
+|:--------------------------|:-------------|:---------------------|:-------------------------------|------:|
+| Newark PD                 | Municipal    | Police               | Newark city                    |  1099 |
+| New Jersey State Police   | State        | Police               | NA                             |  1063 |
+| New Jersey Transit Police | State        | Authority or transit | NA                             |   772 |
+| Jersey City PD            | Municipal    | Police               | Jersey City city               |   606 |
+| Camden PD                 | County       | Police               | Camden city, Woodlynne borough |   517 |
+| Vineland PD               | Municipal    | Police               | Vineland city                  |   414 |
+| Trenton PD                | Municipal    | Police               | Trenton city                   |   337 |
+| Atlantic City PD          | Municipal    | Police               | Atlantic City city             |   312 |
+| Paterson PD               | Municipal    | Police               | Paterson city                  |   293 |
+| Elizabeth PD              | Municipal    | Police               | Elizabeth city                 |   287 |
+
 ## Deploying
 
 This API is implemented as an [AWS

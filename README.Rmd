@@ -118,6 +118,47 @@ by_type = (
 knitr::kable(py$by_type, digits = 2)
 ```
 
+`agency_id` also joins to the [NJ Law Enforcement Agencies API](https://tor-gu.com/apis/njlea.html),
+which serves the njlea registry at `api.tor-gu.com/nj/lea/`. Here are the 2025 incidents by the
+level of government and function of the reporting agency.
+```{python}
+LEA_API = "https://api.tor-gu.com/nj/lea"
+
+registry = load_as_df(f"{LEA_API}/agencies/2025?page_size=1000")
+
+by_level = (
+    counts.merge(registry, how="left", on="agency_id")
+    .groupby(["agency_level", "agency_function"])
+    .agg(agencies=("agency_id", "count"), incidents=("count", "sum"))
+    .sort_values("incidents", ascending=False)
+    .reset_index()
+)
+```
+```{r echo=FALSE}
+knitr::kable(py$by_level)
+```
+
+The registry also lists the municipalities each agency polices, so we can add them to the top ten
+from above. Incidents are counted by agency here. An agency can police several municipalities, so
+to count by municipality, use the `incident_municipality` field. The registry doesn't include
+New Jersey State Police links yet, so its `NA` below doesn't mean that it polices no municipalities.
+```{python}
+served = (
+    load_as_df(f"{LEA_API}/agency_municipalities/2025?page_size=1000")
+    .groupby("agency_id")["municipality"]
+    .agg(", ".join)
+    .reset_index(name="municipalities")
+)
+top_10_served = top_10.merge(
+    registry[["agency_id", "agency_level", "agency_function"]], how="left", on="agency_id"
+).merge(served, how="left", on="agency_id")
+```
+```{r echo=FALSE}
+knitr::kable(py$top_10_served[, c(
+  "agency_name", "agency_level", "agency_function", "municipalities", "count"
+)])
+```
+
 ## Deploying
 This API is implemented as an [AWS SAM](https://aws.amazon.com/serverless/sam/) application
 (`template.yaml`), with four lambdas (incidents, attributes, officers and counts) behind one API
