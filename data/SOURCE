@@ -1,5 +1,5 @@
 package=njoaguof
-version=2.3.0
-ref=v2.3.0
-commit=a989e7a6654062ced0e20436936c1e1c66467d77
-exported=2026-11-03
+version=2.4.0
+ref=v2.4.0
+commit=5d80fe86f173c2f879a110b4e44e0edb4c67aae5
+exported=2026-11-08

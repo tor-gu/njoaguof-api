@@ -1,6 +1,6 @@
 openapi: '3.0.2'
 info:
-  version: '1.1.0'
+  version: '1.2.0'
   title: 'njoaguof-api'
   description: >
     # NJ OAG Use of Force data, from 2020-10-01 to 2026-10-31
@@ -226,7 +226,7 @@ paths:
               example:
                 data:
                 - {"form_id": 16301, "index": 1, "arrested": false, "type": "Person", "age": 23, "juvenile": false, "race": "Black", "gender": "Female", "injured": false, "injured_prior": false}
-                - {"form_id": 16301, "index": 2, "arrested": null, "type": null, "age": 26, "juvenile": false, "race": null, "gender": null, "injured": true, "injured_prior": false}
+                - {"form_id": 16301, "index": 2, "arrested": true, "type": "Person", "age": 26, "juvenile": false, "race": "Hispanic", "gender": "Male", "injured": true, "injured_prior": false}
                 links: {"self": "https://api.tor-gu.com/nj/use_of_force/incidents/16301/subjects?page_number=1&page_size=100"}
                 meta:
                   record_count: 2
@@ -367,8 +367,8 @@ paths:
                   self: https://api.tor-gu.com/nj/use_of_force/subjects?page_number=1&page_size=2
                   next: https://api.tor-gu.com/nj/use_of_force/subjects?page_number=2&page_size=2
                 meta:
-                  record_count: 113918
-                  page_count: 56959
+                  record_count: 113067
+                  page_count: 56534
         '400':
           description: Bad Request
           content:
@@ -870,7 +870,7 @@ paths:
                 data:
                 - {"agency_county": "Essex County", "race": "American Indian", "count": 11}
                 - {"agency_county": "Essex County", "race": "Asian", "count": 61}
-                - {"agency_county": "Essex County", "race": "Black", "count": 8430}
+                - {"agency_county": "Essex County", "race": "Black", "count": 8535}
                 links:
                   self: https://api.tor-gu.com/nj/use_of_force/counts/subjects?agency_county=Essex%20County&by=agency_county%2Crace&page_number=1&page_size=3
                   next: https://api.tor-gu.com/nj/use_of_force/counts/subjects?agency_county=Essex%20County&by=agency_county%2Crace&page_number=2&page_size=3
@@ -983,9 +983,16 @@ components:
     race:
       type: string
       enum: ["American Indian", "Asian", "Asian/Pacific Islander", "Black", "Hispanic", "Native Hawaiian or other Pacific Islander", "Pacific Islander", "Two or more races", "White", "Other"]
-    gender:
+    officerGender:
+      description: >
+        Officer gender. `Other` is the value published in the source data; its
+        meaning is not documented, and it is not an option on the reporting form.
       type: string
-      enum: ["Male", "Female", "Non-Binary/X", "Other"]
+      enum: ["Male", "Female", "Gender Non-Conforming/X", "Other"]
+    subjectGender:
+      description: Subject gender
+      type: string
+      enum: ["Male", "Female", "Gender Non-Conforming/X"]
     incident:
       type: object
       required:
@@ -1056,7 +1063,7 @@ components:
           example: Not Provided
         officer_gender:
           allOf:
-            - $ref: '#/components/schemas/gender'
+            - $ref: '#/components/schemas/officerGender'
           nullable: true
         officer_injured:
           description: True if the officer was injured. C.f. attributes `officer_injury_type` and `officer_medical_treatment`.
@@ -1078,9 +1085,10 @@ components:
         subject_injured_count:
           description: >
             Number of injured subjects (source column `TotalSubInjuredInIncident`).
-            Wherever both are known, it equals the number of the incident's
-            subjects with `injured` true. (In njoaguof releases before 1.16.0
-            this field was unreliable.)
+            Wherever both are known, it almost always equals the number of the
+            incident's subjects with `injured` true. On a few incidents from
+            2021-2022 it is larger, because the source counts injury entries
+            that do not correspond to subjects.
           type: integer
           nullable: true
         other_officer_involved:
@@ -1123,7 +1131,7 @@ components:
           nullable: true
         gender:
           allOf:
-            - $ref: '#/components/schemas/gender'
+            - $ref: '#/components/schemas/subjectGender'
           nullable: true
         injured:
           description: True if the subject was injured in the incident
