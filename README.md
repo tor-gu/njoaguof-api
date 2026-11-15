@@ -213,6 +213,12 @@ top_10_served = top_10.merge(
 | Paterson PD               | Municipal    | Police               | Paterson city                  |   293 |
 | Elizabeth PD              | Municipal    | Police               | Elizabeth city                 |   287 |
 
+The same `agency_id` is used by the [NJ OAG Law Enforcement Officer
+Diversity API](https://tor-gu.com/apis/njoagleod.html), at
+`api.tor-gu.com/nj/officer_diversity/`, which serves officer and
+applicant counts and hiring practices by agency and year, so incidents
+can be set against the size of each agency’s force.
+
 ## Deploying
 
 This API is implemented as an [AWS
@@ -224,7 +230,7 @@ three parts:
 
 1.  The lambda layer
     [layer_torguapi](https://github.com/tor-gu/layer_torguapi), which
-    needs to be deployed separately (version 10 or later).
+    needs to be deployed separately (version 11 or later).
 2.  The data: CSV exports of the tables in
     [njoaguof](https://github.com/tor-gu/njoaguof), committed in
     `data/`, from which `make data` builds each lambda’s `data/`
