@@ -1,21 +1,13 @@
-import array
-import json
 import os
 import shutil
 import sqlite3
 
 import pytest
+import torgucols
 
 from scripts import build_data
 
 from .conftest import FIXTURE_DATA
-
-
-def read_i32(directory, name):
-    a = array.array("i")
-    with open(os.path.join(directory, f"{name}.i32"), "rb") as f:
-        a.frombytes(f.read())
-    return a.tolist()
 
 
 def test_row_counts(fixture_build):
@@ -89,31 +81,47 @@ def test_agency_id_index(fixture_build):
 
 
 def test_counts_columns(fixture_build):
-    d = fixture_build["counts"]
-    assert read_i32(d, "inc.form_id") == [101, 102, 103, 104, 105, 106]
-    assert read_i32(d, "inc.month") == [202103, 202107, 202201, 202206, 202302, 202312]
-    assert read_i32(d, "inc.officer_name_id") == [500, 501, 500, 502, 0, 501]
-    assert read_i32(d, "subj.inc_row") == [0, 0, 1, 2, 3, 3, 4, 5]
+    store = torgucols.open(fixture_build["counts"])
+    assert sorted(store.tables) == [
+        "attribute_subject_resistance",
+        "attribute_type",
+        "attribute_video_type",
+        "incident",
+        "subject",
+    ]
+    incident = store.table("incident")
+    assert incident.values("form_id") == [101, 102, 103, 104, 105, 106]
+    assert incident.values("month") == [202103, 202107, 202201, 202206, 202302, 202312]
+    null = torgucols.INT32_MIN
+    assert incident.values("officer_name_id") == [500, 501, 500, 502, null, 501]
+    subject = store.table("subject")
+    assert subject.values("incident_row") == [0, 0, 1, 2, 3, 3, 4, 5]
     # 0 null, 1 false, 2 true
-    assert read_i32(d, "subj.arrested") == [2, 0, 1, 2, 2, 1, 1, 2]
+    assert subject.values("arrested") == [2, 0, 1, 2, 2, 1, 1, 2]
+    assert subject.dictionary("type") == [
+        "Person",
+        "Animal",
+        "Other",
+        "Unknown Subject(s)",
+    ]
     # Distinct (incident row, code) pairs, sorted
-    assert read_i32(d, "a_video_type.row") == [0, 0, 2, 5, 5]
-    assert read_i32(d, "a_video_type.v") == [1, 7, 1, 1, 3]
-    with open(os.path.join(d, "labels.json")) as f:
-        labels = json.load(f)["labels"]
-    assert labels["incident.agency"] == [
+    video_type = store.table("attribute_video_type")
+    assert video_type.values("incident_row") == [0, 0, 2, 5, 5]
+    assert video_type.values("value") == [1, 7, 1, 1, 3]
+    assert video_type.dictionary("value")[0] == "Body Worn"
+    assert incident.dictionary("agency") == [
         "Atlantic City PD",
         "Newark PD",
         "Washington Twp PD",
     ]
-    assert labels["incident.agency_id"] == [
+    assert incident.dictionary("agency_id") == [
         "NJLEA0002",
         "NJLEA0199",
         "NJLEA0223",
         "NJLEA0388",
     ]
-    assert read_i32(d, "inc.agency_id") == [2, 2, 3, 4, 1, 2]
-    assert labels["attribute.video_type"][0] == "Body Worn"
+    assert incident.values("agency_id") == [2, 2, 3, 4, 1, 2]
+    assert store.source["version"] == build_data.Export(FIXTURE_DATA).source["version"]
 
 
 @pytest.fixture

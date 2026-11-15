@@ -18,6 +18,12 @@ def test_codebook():
             "value_column": "subject_resistance",
         },
         {
+            "attribute": "type",
+            "table": "incident_type",
+            "shape": "incident",
+            "value_column": "type",
+        },
+        {
             "attribute": "video_type",
             "table": "incident_video_type",
             "shape": "incident",

@@ -39,3 +39,5 @@
 "incident_subject_resistance",1,"form_id","integer"
 "incident_subject_resistance",2,"index","integer"
 "incident_subject_resistance",3,"subject_resistance","factor"
+"incident_type",1,"form_id","integer"
+"incident_type",2,"type","factor"

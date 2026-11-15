@@ -10,9 +10,10 @@ columns.csv, levels.csv, SOURCE) and writes, under the repo root:
   attributes/data/njoaguof.sqlite   the 16 attribute tables, an incident
                                     filter table, the codebook and the levels
   officers/data/njoaguof.sqlite     officer, officer_name_variants
-  counts/data/                      int32 columns (*.i32) and labels.json
+  counts/data/                      a torgucols store (github.com/tor-gu/torgucols):
+                                    tables incident, subject and attribute_<x>
 
-Only the standard library is used, so this runs anywhere Python 3.12 does.
+Besides the standard library it needs only torgucols (stdlib-only itself).
 
 Size matters (a cold start costs about 13 ms per zipped MB), so repeated
 values are stored as integer codes:
@@ -25,21 +26,21 @@ values are stored as integer codes:
   text      TEXT                              str
 
 A code is a factor's level position, or a character column's position in
-sorted order. In the counts columns 0 means null (and logicals are 1 = false,
-2 = true); in SQLite null is NULL. Either way, sorting codes sorts values in
+sorted order. In the counts columns null is 0 (logicals are 1 = false, 2 =
+true; integers use INT32_MIN for null); in SQLite null is NULL. Either way, sorting codes sorts values in
 the order the API promises: declared levels, null last.
 
 Rows keep the export's order, which is R's row order.
 """
 
-import array
 import csv
 import gzip
-import json
 import os
 import sqlite3
 import sys
 from collections import defaultdict
+
+import torgucols
 
 DB_NAME = "njoaguof.sqlite"
 
@@ -72,8 +73,8 @@ FILTER_INDEXES = [["incident_date_1"]] + [
     [c, "incident_date_1"] for c in FILTER_COLUMNS if c != "incident_date_1"
 ]
 
-# Counts: incident columns stored as inc.<name>.i32 (besides form_id, date,
-# year, month and officer_name_id), by source column
+# Counts: the coded columns of the incident table (besides form_id, date, year,
+# month and officer_name_id), by source column
 COUNT_INCIDENT_CODED = {
     "agency_id": "agency_id",
     "agency": "agency_name",
@@ -484,70 +485,76 @@ def build_officers(path, ex):
 # --- counts ---
 
 
-def write_i32(path, values):
-    with open(path, "wb") as f:
-        array.array("i", values).tofile(f)
+def count_column(ex, name, table, column, values):
+    """A counts column, encoded by torgucols with the export's type and labels"""
+    type_ = ex.type_of(table, column)
+    if type_ in ("logical", "character"):
+        column_type, levels = type_, None
+    else:
+        column_type, levels = "factor", ex.labels(table, column)
+    try:
+        return torgucols.encode_column(name, column_type, values, levels)
+    except torgucols.EncodeError as e:
+        raise BuildError(f"counts {e}") from None
+
+
+def integer_column(name, values):
+    return torgucols.encode_column(name, "integer", values)
 
 
 def build_counts(out_dir, ex):
     os.makedirs(out_dir, exist_ok=True)
-    for name in os.listdir(out_dir):
-        if name.endswith(".i32") or name == "labels.json":
-            os.remove(os.path.join(out_dir, name))
-    labels = {}
-
-    def coder(key, table, column):
-        """Count codes for one column (0 = null); records its labels"""
-        if ex.type_of(table, column) == "logical":
-            return lambda v: 0 if v is None else (2 if v else 1)
-        labels[key] = ex.labels(table, column)
-        code = ex.codes(table, column)
-        return lambda v: 0 if v is None else code[v]
+    # Before the move to torgucols the labels were in labels.json
+    old = os.path.join(out_dir, "labels.json")
+    if os.path.exists(old):
+        os.remove(old)
 
     incident = sorted(ex.tables["incident"], key=lambda r: r["form_id"])
     dates = [int(r["incident_date_1"].replace("-", "")) for r in incident]
-    inc_cols = {
-        "form_id": [r["form_id"] for r in incident],
-        "date": dates,
-        "year": [d // 10000 for d in dates],
-        "month": [d // 100 for d in dates],
-        "officer_name_id": [r["officer_name_id"] or 0 for r in incident],
-    }
+    inc_cols = [
+        integer_column("form_id", [r["form_id"] for r in incident]),
+        integer_column("date", dates),
+        integer_column("year", [d // 10000 for d in dates]),
+        integer_column("month", [d // 100 for d in dates]),
+        integer_column("officer_name_id", [r["officer_name_id"] for r in incident]),
+    ]
     for dim, column in COUNT_INCIDENT_CODED.items():
-        code = coder(f"incident.{dim}", "incident", column)
-        inc_cols[dim] = [code(r[column]) for r in incident]
-    for name, values in inc_cols.items():
-        write_i32(os.path.join(out_dir, f"inc.{name}.i32"), values)
+        inc_cols.append(
+            count_column(ex, dim, "incident", column, [r[column] for r in incident])
+        )
+    tables = {"incident": {"columns": inc_cols}}
 
     row_of = {r["form_id"]: i for i, r in enumerate(incident)}
     subject = ex.tables["subject"]
     missing = {r["form_id"] for r in subject} - row_of.keys()
     if missing:
         raise BuildError(f"subjects of unknown incidents: {sorted(missing)[:10]}")
-    write_i32(
-        os.path.join(out_dir, "subj.inc_row.i32"),
-        [row_of[r["form_id"]] for r in subject],
-    )
+    subj_cols = [
+        integer_column("incident_row", [row_of[r["form_id"]] for r in subject])
+    ]
     for column in COUNT_SUBJECT_CODED:
-        code = coder(f"subject.{column}", "subject", column)
-        write_i32(
-            os.path.join(out_dir, f"subj.{column}.i32"),
-            [code(r[column]) for r in subject],
+        subj_cols.append(
+            count_column(ex, column, "subject", column, [r[column] for r in subject])
         )
+    tables["subject"] = {"columns": subj_cols}
 
     for attribute, table, _, value_column in ex.attributes():
-        code = coder(f"attribute.{attribute}", table, value_column)
-        # Distinct (incident, value) pairs: an incident counts once per value
+        code = ex.codes(table, value_column)
+        # Distinct (incident, value) pairs, in (row, code) order: an incident
+        # counts once per value
         pairs = sorted(
-            {(row_of[r["form_id"]], code(r[value_column])) for r in ex.tables[table]}
+            {(row_of[r["form_id"]], r[value_column]) for r in ex.tables[table]},
+            key=lambda p: (p[0], 0 if p[1] is None else code[p[1]]),
         )
-        write_i32(
-            os.path.join(out_dir, f"a_{attribute}.row.i32"), [p[0] for p in pairs]
-        )
-        write_i32(os.path.join(out_dir, f"a_{attribute}.v.i32"), [p[1] for p in pairs])
+        tables[f"attribute_{attribute}"] = {
+            "columns": [
+                integer_column("incident_row", [p[0] for p in pairs]),
+                count_column(ex, "value", table, value_column, [p[1] for p in pairs]),
+            ],
+            "meta": {"attribute": attribute},
+        }
 
-    with open(os.path.join(out_dir, "labels.json"), "w", encoding="utf-8") as f:
-        json.dump({"byteorder": sys.byteorder, "labels": labels}, f, ensure_ascii=False)
+    torgucols.write(out_dir, tables, source=ex.source)
 
 
 # --- main ---

@@ -78,6 +78,31 @@ def test_subject_counts():
     ]
 
 
+def test_subjects_by_type_uses_subject_labels():
+    """type is a subject dimension and an attribute; each keeps its own labels"""
+    assert counts("subjects", {"by": "type"}) == [("Person", 7), ("Animal", 1)]
+    assert counts("subjects", {"by": "agency_county,type"}) == [
+        ("Essex County", "Person", 4),
+        ("Gloucester County", "Person", 1),
+        ("Morris County", "Person", 1),
+        ("Morris County", "Animal", 1),
+        (None, "Person", 1),
+    ]
+
+
+def test_incidents_by_type_uses_attribute_labels():
+    assert counts("incidents", {"by": "type"}) == [
+        ("Aggressive/Injured Animal", 1),
+        ("Assault", 2),
+        ("Burglary", 1),
+    ]
+
+
+def test_officer_name_id_zero_matches_nothing():
+    """As in /incidents: 0 is an id no officer has, not null"""
+    assert get("subjects", {"by": "race", "officer_name_id": "0"})[0] == 404
+
+
 def test_links_carry_by_and_filters():
     status, body = get(
         "subjects",

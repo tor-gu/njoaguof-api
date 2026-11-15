@@ -95,3 +95,8 @@
 "incident_subject_resistance","subject_resistance",9,"Threatening Assailant"
 "incident_subject_resistance","subject_resistance",10,"Verbal"
 "incident_subject_resistance","subject_resistance",11,"Other"
+"incident_type","type",1,"Aggressive/Injured Animal"
+"incident_type","type",2,"Assault"
+"incident_type","type",3,"Assisting another officer"
+"incident_type","type",4,"Burglary"
+"incident_type","type",5,"Distribution of CDS"
