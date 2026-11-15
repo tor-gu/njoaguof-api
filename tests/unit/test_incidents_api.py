@@ -67,6 +67,9 @@ def test_incidents_not_found(query):
         {"agency_county": "Essex"},
         {"agency_id": "199"},
         {"agency_id": "njlea0199"},
+        # Were a 500 before layer v11 (ValueError from the layer)
+        {"page_size": "²"},
+        {"page_number": "9" * 5000},
     ],
 )
 def test_incidents_bad_request(query):

@@ -10,8 +10,8 @@ Parameters:
     Description: Arn for torguapi layer (not a layer version, so exclude the version number)
   TorguapiLayerVersion:
     Type: Number
-    Description: Version number for TorguapiLayer (10 or later, for lists of dicts)
-    MinValue: "10"
+    Description: Version number for TorguapiLayer (11 or later, for lists of dicts and the page-parameter ValueError fix)
+    MinValue: "11"
   EnvPrefix:
     Type: String
     Description: Prefix for resource names

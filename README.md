@@ -277,7 +277,7 @@ The application can be deployed directly using the SAM CLI:
                --resolve-s3                                                                     \
                --parameter-overrides                                                            \
                     TorguapiLayerArn=arn:aws:lambda:us-east-1:123456789012:layer:layer_torguapi \
-                    TorguapiLayerVersion=10                                                     \
+                    TorguapiLayerVersion=11                                                     \
                     ApiRoot=https://api.example.com                                             \
                     DataVersion=$(sed -n 's/^version=//p' data/SOURCE)
 

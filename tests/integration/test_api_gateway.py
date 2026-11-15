@@ -59,6 +59,8 @@ def test_spec_example(api_url, resource, function, example):
         ("counts/subjects?by=race&agency=Nowhere%20PD", 404),
         ("incidents?agency_id=NJLEA9999", 404),
         ("incidents?agency_id=bad", 400),
+        # 500 on layer v10 (ValueError); 400 from v11
+        ("incidents?page_size=%C2%B2", 400),
     ],
 )
 def test_status(api_url, path, status):

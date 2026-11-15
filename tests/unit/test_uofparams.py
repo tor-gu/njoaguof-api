@@ -29,6 +29,11 @@ def test_page_parameters_defaults():
         {"page_number": "x"},
         {"page_size": "0"},
         {"page_size": "-1"},
+        # isnumeric() passes these but int() raises ValueError (needs layer v11)
+        {"page_number": "²"},
+        {"page_size": "²"},
+        {"page_number": "9" * 5000},
+        {"page_size": "9" * 5000},
     ],
 )
 def test_page_parameters_invalid(query):
