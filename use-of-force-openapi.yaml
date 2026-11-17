@@ -7,7 +7,7 @@ info:
 
     A cleaned and normalized version of the NJ Attorney General's Use of Force
     database (https://www.njoag.gov/force/), as published in the
-    [njoaguof data package for R](https://github.com/tor-gu/njoaguof).
+    [njoaguof data package for R](https://github.com/torgu-data/njoaguof).
     Field names and values are the same as in the R package.
 
 
@@ -53,7 +53,7 @@ info:
     ## Agencies
 
     Every incident has an `agency_id`, the agency's identifier in
-    [njlea](https://github.com/tor-gu/njlea), a registry of NJ law enforcement
+    [njlea](https://github.com/torgu-data/njlea), a registry of NJ law enforcement
     agencies (e.g. `NJLEA0199` is Newark PD). Use it to join with other NJ law
     enforcement datasets, and with the njlea API
     ([njlea-api](https://tor-gu.com/apis/njlea.html), at `/nj/lea/*`) for
@@ -1209,7 +1209,7 @@ components:
           example: Clear
     agencyId:
       description: >
-        The agency's [njlea](https://github.com/tor-gu/njlea) identifier.
+        The agency's [njlea](https://github.com/torgu-data/njlea) identifier.
         Derived from `agency_county` and `agency_name`.
       type: string
       pattern: '^NJLEA[0-9]{4}$'

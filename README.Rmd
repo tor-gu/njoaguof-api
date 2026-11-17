@@ -14,7 +14,7 @@ This is the source code for the NJ Use of Force API deployed at `api.tor-gu.com/
 
 It serves the New Jersey Attorney General's [Use of Force](https://www.njoag.gov/force/) data, from
 October 2020 to the latest release, cleaned and normalized as in the
-[njoaguof data package for R](https://github.com/tor-gu/njoaguof). Field names and values are the
+[njoaguof data package for R](https://github.com/torgu-data/njoaguof). Field names and values are the
 same as in the R package, which documents the dataset in detail.
 
 ## Try it out
@@ -47,7 +47,7 @@ indicating that there are more results to be retrieved.
 This is illustrated in the python code below, which loads Newark PD's 2025 incidents into a
 [pandas DataFrame](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html).
 Every incident carries the reporting agency's `agency_id`, its identifier in the
-[njlea](https://github.com/tor-gu/njlea) registry of NJ law enforcement agencies. Newark PD is
+[njlea](https://github.com/torgu-data/njlea) registry of NJ law enforcement agencies. Newark PD is
 `NJLEA0199`.
 ```{python}
 import requests
@@ -170,9 +170,9 @@ This API is implemented as an [AWS SAM](https://aws.amazon.com/serverless/sam/) 
 Gateway. There are no tables: each lambda's data is built from `data/` and packaged with its code.
 A deployment has three parts:
 
-1. The lambda layer [layer_torguapi](https://github.com/tor-gu/layer_torguapi), which needs to be
+1. The lambda layer [layer_torguapi](https://github.com/torgu-data/layer_torguapi), which needs to be
    deployed separately (version 11 or later).
-2. The data: CSV exports of the tables in [njoaguof](https://github.com/tor-gu/njoaguof), committed
+2. The data: CSV exports of the tables in [njoaguof](https://github.com/torgu-data/njoaguof), committed
    in `data/`, from which `make data` builds each lambda's `data/` directory.
 3. The lambdas and API Gateway, defined in `template.yaml`. The API is defined by the OpenAPI
    document `use-of-force-openapi.yaml`, and `make apigateway_spec` writes the copy that API Gateway
@@ -224,7 +224,7 @@ Replace the `TorguapiLayerXXX` params with the values derived from the `layer_to
 
 The `ApiRoot` value is used only for generating the values in `"links"` in the JSON reply. On
 `api.tor-gu.com`, the relationship between the publicly facing API URL and the API Gateway
-endpoints is configured in [torgu-api-cloudfront](https://github.com/tor-gu/torgu-api-cloudfront).
+endpoints is configured in [torgu-api-cloudfront](https://github.com/torgu-data/torgu-api-cloudfront).
 
 To deploy a second environment alongside the first, give it a resource name prefix (I use `dev-`)
 with the `EnvPrefix` template parameter.

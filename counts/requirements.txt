@@ -1,4 +1,4 @@
 # Bundled into the function by sam build. The release wheel, not a git pin:
 # sam build needs a PKG-INFO or setup.py from a source download, and
 # torgucols has neither.
-torgucols @ https://github.com/tor-gu/torgucols/releases/download/v0.1.0/torgucols-0.1.0-py3-none-any.whl
+torgucols @ https://github.com/torgu-data/torgucols/releases/download/v0.1.0/torgucols-0.1.0-py3-none-any.whl

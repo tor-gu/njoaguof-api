@@ -3,7 +3,7 @@
 #
 # Usage: Rscript scripts/export_data.R <git-ref> [out-dir]
 #
-# Installs tor-gu/njoaguof at <git-ref> (e.g. v2.1.2) into a temporary
+# Installs torgu-data/njoaguof at <git-ref> (e.g. v2.1.2) into a temporary
 # library, and writes to out-dir (default: data):
 #   <table>.csv.gz  one per table, in R's row order (NA is an empty field;
 #                   empty strings are exported as NA, and reported)
@@ -48,7 +48,7 @@ if (nzchar(local_git)) {
   )
 } else {
   remotes::install_github(
-    "tor-gu/njoaguof",
+    "torgu-data/njoaguof",
     ref = ref, lib = lib, upgrade = "never", dependencies = NA, quiet = TRUE
   )
 }

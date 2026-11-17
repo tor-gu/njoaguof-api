@@ -10,7 +10,7 @@ columns.csv, levels.csv, SOURCE) and writes, under the repo root:
   attributes/data/njoaguof.sqlite   the 16 attribute tables, an incident
                                     filter table, the codebook and the levels
   officers/data/njoaguof.sqlite     officer, officer_name_variants
-  counts/data/                      a torgucols store (github.com/tor-gu/torgucols):
+  counts/data/                      a torgucols store (github.com/torgu-data/torgucols):
                                     tables incident, subject and attribute_<x>
 
 Besides the standard library it needs only torgucols (stdlib-only itself).
